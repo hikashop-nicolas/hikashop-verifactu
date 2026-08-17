@@ -140,7 +140,7 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
         $pais = trim((string) $this->params->get('declaracion_pais', '')) ?: $billing['pais'];
         $lugar = trim((string) $this->params->get('declaracion_lugar', '')) ?: $localidad;
         $fecha = trim((string) $this->params->get('declaracion_fecha', '')) ?: date('d/m/Y');
-        $version = trim((string) $this->params->get('declaracion_version', '0.30.1'));
+        $version = trim((string) $this->params->get('declaracion_version', '')) ?: VerifactuVersion::get();
 
         return compact('name','nif','address','cp','localidad','provincia','pais','lugar','fecha','version') + [
             'nombre' => $name,

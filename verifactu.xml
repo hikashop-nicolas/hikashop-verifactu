@@ -71,7 +71,7 @@
                     <option value="1">Sí</option>
                     <option value="0">No</option>
                 </field>
-                <field name="declaracion_version" type="text" label="Versión del sistema declarada" default="0.30.7" description="Versión concreta del plugin/sistema a la que corresponde la declaración." />
+                <field name="declaracion_version" type="text" label="Versión del sistema declarada" default="" description="Versión concreta del plugin/sistema a la que corresponde la declaración." />
 
             </fieldset>
         </fields>

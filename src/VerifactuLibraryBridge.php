@@ -2,6 +2,7 @@
 defined('_JEXEC') or die;
 
 require_once __DIR__ . '/VerifactuLog.php';
+require_once __DIR__ . '/VerifactuVersion.php';
 require_once __DIR__ . '/../vendor/autoload.php'; // vendor/ generado por Composer dentro de la propia carpeta del plugin
 
 use eseperio\verifactu\Verifactu;
@@ -474,8 +475,10 @@ class VerifactuLibraryBridge
         $invoice->setChaining($chaining);
 
         $computerSystem = new ComputerSystem();
-        $computerSystem->systemName = 'HikaShop';
-        $computerSystem->version = '1.0';
+        // Identifica al sistema informático de facturación, que es este plugin
+        // (no HikaShop, que no declara nada ante la AEAT), y su versión real.
+        $computerSystem->systemName = 'HikaShop VeriFactu';
+        $computerSystem->version = VerifactuVersion::get();
         $computerSystem->providerName = $this->params->get('nombre_desarrollador') ?: $this->params->get('nombre_emisor');
         $computerSystem->systemId = '01';
         $computerSystem->installationNumber = '1';
