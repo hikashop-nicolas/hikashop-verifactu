@@ -4,6 +4,10 @@ The plugin's own code is what lives in this repository. The libraries it runs on
 are not committed: they are fetched by Composer and patched at build time, so a
 clone is small and every build starts from a known state.
 
+If you only want to install the plugin, you do not need any of this: the built
+package is attached to every
+[release](https://github.com/hikashop-nicolas/hikashop-verifactu/releases/latest).
+
 ## Requirements
 
 PHP 8.1 or newer with the soap, dom, openssl and gd extensions, Composer, and
@@ -49,5 +53,16 @@ from the script.
 ## Continuous integration
 
 `.github/workflows/build.yml` syntax checks the plugin on every push and builds
-the package. Pushing a tag starting with `v` also attaches the package to the
-matching GitHub release.
+the package, which is kept as a run artifact.
+
+Releases are cut by hand, not on every commit: bump `<version>` in
+`verifactu.xml`, add the entry to `CHANGELOG.md`, then push the matching tag.
+
+```
+git tag v0.31.0
+git push origin v0.31.0
+```
+
+The workflow then builds that tag and attaches
+`plg_hikashop_verifactu_v0.31.0.zip` to the release, which is where the download
+link in the README points.

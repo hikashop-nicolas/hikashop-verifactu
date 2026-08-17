@@ -1,5 +1,11 @@
 # Manual de instalación y configuración — PLG_HIKASHOP_VERIFACTU
 
+> **Descargar.** El paquete instalable de la última versión está en la
+> [página de releases](https://github.com/hikashop-nicolas/hikashop-verifactu/releases/latest):
+> descarga el archivo `plg_hikashop_verifactu_v<versión>.zip` e instálalo desde
+> el gestor de extensiones de Joomla. Los cambios de cada versión están en
+> [CHANGELOG.md](CHANGELOG.md).
+
 > **Origen y licencia.** El plugin lo escribió **nicobraam (Locker25)** y lo publicó
 > en el foro de HikaShop, con licencia GPLv2:
 > https://www.hikashop.com/forum/install-update/910753-verifactu.html#373060
