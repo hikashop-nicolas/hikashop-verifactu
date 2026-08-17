@@ -1,5 +1,12 @@
 # Manual de instalación y configuración — PLG_HIKASHOP_VERIFACTU
 
+> **Origen y licencia.** El plugin lo escribió **nicobraam (Locker25)** y lo publicó
+> en el foro de HikaShop, con licencia GPLv2:
+> https://www.hikashop.com/forum/install-update/910753-verifactu.html#373060
+> Este repositorio parte de su versión 0.30.32 y añade el empaquetado y las
+> correcciones que van commit a commit desde la importación inicial. Para
+> compilar el paquete instalable, ver [BUILD.md](BUILD.md).
+
 ## 1. Introducción
 
 Este manual explica cómo instalar y configurar el plugin **PLG_HIKASHOP_VERIFACTU** en una instalación Joomla + HikaShop, incluyendo la preparación del certificado digital, la configuración del plugin y la configuración de los campos personalizados utilizados para los abonos y facturas rectificativas.
