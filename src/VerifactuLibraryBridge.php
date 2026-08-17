@@ -432,17 +432,21 @@ class VerifactuLibraryBridge
         }
 
         if ($breakdown->getDetails() === []) {
-            // Fallback si el pedido no trae order_tax_info desglosado o no se
-            // pudo resolver ningún tipo real (revisar caso a caso; esto NO
-            // debería pasar en un pedido normal con impuestos configurados).
-            $detail = new BreakdownDetail();
-            $detail->taxType = TaxType::IVA;
-            $detail->regimeKey = RegimeType::GENERAL;
-            $detail->taxRate = 21.00;
-            $detail->taxableBase = (float) $order->order_full_price;
-            $detail->taxAmount = 0.0;
-            $detail->operationQualification = OperationQualificationType::SUBJECT_NO_EXEMPT_NO_REVERSE;
-            $breakdown->addDetail($detail);
+            // El pedido no trae order_tax_info desglosado o no se pudo resolver
+            // ningún tipo real. No se inventa un desglose: una declaración con
+            // un IVA que no es el del pedido es peor que no declarar todavía,
+            // porque queda registrada en la AEAT y hay que rectificarla.
+            VerifactuLog::add(
+                'Pedido ' . ($order->order_id ?? '?') . ' sin desglose de impuestos utilizable: no se envía a la AEAT.',
+                \Joomla\CMS\Log\Log::ERROR
+            );
+
+            return [
+                'estado' => 'error_desglose',
+                'csv' => null,
+                'errores' => ['El pedido no tiene un desglose de impuestos utilizable. Revisa los impuestos del pedido y vuelve a lanzar el envío.'],
+                'qr' => null,
+            ];
         }
 
         $invoice->setBreakdown($breakdown);
