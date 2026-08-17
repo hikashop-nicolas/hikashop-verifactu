@@ -402,9 +402,11 @@ Mantén una copia de seguridad segura del certificado y de su contraseña, separ
         └── hikashop/
             └── verifactu/
                 ├── verifactu.php
-                ├── composer.json
-                ├── composer.lock
-                ├── apply_vendor_patches.sh
+                ├── verifactu.xml
+                ├── script.php
+                ├── src/
+                ├── sql/
+                ├── fields/
                 └── vendor/
 ```
 
