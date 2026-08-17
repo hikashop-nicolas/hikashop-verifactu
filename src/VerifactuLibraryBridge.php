@@ -1,6 +1,7 @@
 <?php
 defined('_JEXEC') or die;
 
+require_once __DIR__ . '/VerifactuLog.php';
 require_once __DIR__ . '/../vendor/autoload.php'; // vendor/ generado por Composer dentro de la propia carpeta del plugin
 
 use eseperio\verifactu\Verifactu;
@@ -123,11 +124,7 @@ class VerifactuLibraryBridge
                     $this->db->execute();
                 } catch (\Throwable $e) {
                     // No bloquear una factura ya existente por una migración de esquema.
-                    @file_put_contents(
-                        __DIR__ . '/../debug.log',
-                        '[' . date('Y-m-d H:i:s') . '] Error creando columna ' . $column . ': ' . $e->getMessage() . "\n",
-                        FILE_APPEND
-                    );
+                    VerifactuLog::add('Error creando columna ' . $column . ': ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
                 }
             }
         }
@@ -430,11 +427,7 @@ class VerifactuLibraryBridge
             // Cualquier recargo que no se haya podido emparejar con un IVA presente
             // en este pedido se registra para revisión manual (caso raro/edge).
             if (!empty($lineasRecargo)) {
-                @file_put_contents(
-                    __DIR__ . '/../debug.log',
-                    '[' . date('Y-m-d H:i:s') . '] Recargo de equivalencia sin IVA emparejado en pedido ' . ($order->order_id ?? '?') . ': ' . json_encode($lineasRecargo) . "\n",
-                    FILE_APPEND
-                );
+                VerifactuLog::add('Recargo de equivalencia sin IVA emparejado en pedido ' . ($order->order_id ?? '?') . ': ' . json_encode($lineasRecargo), \Joomla\CMS\Log\Log::WARNING);
             }
         }
 
@@ -805,11 +798,7 @@ class VerifactuLibraryBridge
 
     private function logQr(string $mensaje): void
     {
-        @file_put_contents(
-            __DIR__ . '/../debug.log',
-            '[' . date('Y-m-d H:i:s') . '] QR: ' . $mensaje . "\n",
-            FILE_APPEND
-        );
+        VerifactuLog::add('QR: ' . $mensaje);
     }
 
     private function actualizarQrRegistro(int $orderId, string $invoiceNumber, string $qrImage): void
@@ -859,11 +848,7 @@ class VerifactuLibraryBridge
                 throw new \RuntimeException('No se pudo insertar el registro VeriFactu: ' . $error);
             }
         } catch (\Throwable $e) {
-            @file_put_contents(
-                __DIR__ . '/../debug.log',
-                '[' . date('Y-m-d H:i:s') . '] ERROR INSERT VeriFactu pedido ' . ($order->order_id ?? '?') . ': ' . $e->getMessage() . "\n",
-                FILE_APPEND
-            );
+            VerifactuLog::add('ERROR INSERT VeriFactu pedido ' . ($order->order_id ?? '?') . ': ' . $e->getMessage(), \Joomla\CMS\Log\Log::ERROR);
             throw $e;
         }
     }

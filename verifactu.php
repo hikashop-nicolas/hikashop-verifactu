@@ -6,28 +6,13 @@ require_once __DIR__ . '/src/VerifactuLibraryBridge.php';
 class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
 {
     /**
-     * Registra el logger de Joomla para la categoría 'verifactu' (sin esto,
-     * \Joomla\CMS\Log\Log::add() no escribe nada a ningún archivo -- era el bug por el que
-     * no aparecía nada en administrator/logs/). Además escribe una copia
-     * directa a un archivo dentro del propio plugin, como respaldo fiable
-     * para depurar mientras probamos la instalación.
+     * Escribe en el registro de Joomla, categoría 'verifactu'.
+     * El archivo queda en la carpeta de logs de Joomla (administrator/logs/
+     * salvo que se haya cambiado en la configuración global).
      */
-    private static function log(string $mensaje, int $nivel = 2): void
+    private static function log(string $mensaje, int $nivel = \Joomla\CMS\Log\Log::INFO): void
     {
-        static $loggerRegistrado = false;
-        if (!$loggerRegistrado) {
-            \Joomla\CMS\Log\Log::addLogger(['text_file' => 'verifactu.php'], \Joomla\CMS\Log\Log::ALL, ['verifactu']);
-            $loggerRegistrado = true;
-        }
-
-        \Joomla\CMS\Log\Log::add($mensaje, $nivel, 'verifactu');
-
-        // Respaldo directo, independiente de la configuración de logs de Joomla
-        @file_put_contents(
-            __DIR__ . '/debug.log',
-            '[' . date('Y-m-d H:i:s') . '] ' . $mensaje . "\n",
-            FILE_APPEND
-        );
+        VerifactuLog::add($mensaje, $nivel);
     }
 
 
