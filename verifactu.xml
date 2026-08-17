@@ -8,6 +8,8 @@
     <version>0.30.32</version>
     <description>Integración de VeriFactu (AEAT) con HikaShop: facturación, QR, envío AEAT, declaración responsable y condiciones de uso.</description>
 
+    <scriptfile>script.php</scriptfile>
+
     <files>
         <filename plugin="verifactu">verifactu.php</filename>
         <filename>composer.json</filename>

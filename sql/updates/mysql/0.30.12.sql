@@ -1,6 +1,5 @@
-ALTER TABLE `#__hikashop_order`
-    ADD COLUMN IF NOT EXISTS `verifactu_tipo_abono` VARCHAR(255) NULL,
-    ADD COLUMN IF NOT EXISTS `verifactu_comentario_abono` TEXT NULL;
+-- Las columnas de la tabla de pedidos las crea script.php (postflight),
+-- válido tanto en MySQL como en MariaDB.
 
 INSERT INTO `#__hikashop_field`
     (`field_table`, `field_realname`, `field_namekey`, `field_type`, `field_value`,

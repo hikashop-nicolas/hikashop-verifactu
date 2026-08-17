@@ -32,7 +32,7 @@ rm -rf build
 mkdir -p "$STAGE"
 
 echo "== assembling"
-cp verifactu.php verifactu.xml composer.json "$STAGE/"
+cp verifactu.php verifactu.xml script.php composer.json "$STAGE/"
 cp -R src sql fields media vendor "$STAGE/"
 
 # Documentation and test material of the dependencies: never executed, and the

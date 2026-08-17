@@ -1,5 +1,3 @@
-ALTER TABLE `#__hikashop_verifactu_registro`
-    ADD COLUMN IF NOT EXISTS `tipo_abono` VARCHAR(80) NULL AFTER `total_factura`,
-    ADD COLUMN IF NOT EXISTS `tipo_factura` VARCHAR(2) NULL AFTER `tipo_abono`,
-    ADD COLUMN IF NOT EXISTS `tipo_rectificativa` VARCHAR(1) NULL AFTER `tipo_factura`,
-    ADD COLUMN IF NOT EXISTS `factura_rectificada` VARCHAR(60) NULL AFTER `tipo_rectificativa`;
+-- v0.28.0: columnas de tipo de factura y rectificativa en la tabla de registro.
+-- Las crea script.php (postflight), porque la comprobación de existencia de una
+-- columna no se puede escribir en SQL válido para MySQL y MariaDB a la vez.

@@ -44,10 +44,10 @@ CREATE TABLE IF NOT EXISTS `#__hikashop_verifactu_declaracion` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- v0.30.12: crea automáticamente los campos personalizados de HikaShop
--- para Tipo de abono y Comentario del abono.
-ALTER TABLE `#__hikashop_order`
-    ADD COLUMN IF NOT EXISTS `verifactu_tipo_abono` VARCHAR(255) NULL,
-    ADD COLUMN IF NOT EXISTS `verifactu_comentario_abono` TEXT NULL;
+-- para Tipo de abono y Comentario del abono. Las columnas correspondientes de
+-- la tabla de pedidos las crea script.php, porque la comprobación de existencia
+-- de una columna no se puede escribir en SQL de forma válida para MySQL y para
+-- MariaDB a la vez.
 
 INSERT INTO `#__hikashop_field`
     (`field_table`, `field_realname`, `field_namekey`, `field_type`, `field_value`,
