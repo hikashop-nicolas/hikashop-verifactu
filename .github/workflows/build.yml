@@ -1,0 +1,37 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: soap, dom, openssl, mbstring, zip, gd
+          tools: composer
+
+      - name: Syntax check the plugin's own code
+        run: find verifactu.php src fields media scripts -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Build the package
+        run: ./build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plg_hikashop_verifactu
+          path: build/*.zip
+
+      - name: Attach the package to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/*.zip
