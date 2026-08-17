@@ -31,7 +31,7 @@ use Joomla\Registry\Registry;
 class VerifactuLibraryBridge
 {
     /**
-     * Sin tipo estricto a propósito: según la versión de Joomla, JFactory::getDbo()
+     * Sin tipo estricto a propósito: según la versión de Joomla, \Joomla\CMS\Factory::getDbo()
      * devuelve una clase distinta (la antigua JDatabaseDriver, o la moderna
      * Joomla\Database\Mysqli\MysqliDriver / PdoDriver, etc.). Forzar un tipo
      * concreto rompe la instalación según la versión de Joomla que uses --

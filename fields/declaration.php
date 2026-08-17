@@ -1,7 +1,7 @@
 <?php
 defined('_JEXEC') or die;
 
-class JFormFieldDeclaration extends JFormField
+class JFormFieldDeclaration extends \Joomla\CMS\Form\FormField
 {
     protected $type = 'Declaration';
 

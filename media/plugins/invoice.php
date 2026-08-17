@@ -21,7 +21,7 @@ $hasQr = (strpos($invoiceHtml, 'class="verifactu-qr"') !== false);
 
 if (!$hasQr && !empty($order->order_id)) {
     try {
-        $db = JFactory::getDbo();
+        $db = \Joomla\CMS\Factory::getDbo();
         $query = $db->getQuery(true)
             ->select('qr_url, invoice_number')
             ->from('#__hikashop_verifactu_registro')

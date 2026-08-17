@@ -3,11 +3,11 @@ defined('_JEXEC') or die;
 
 require_once __DIR__ . '/src/VerifactuLibraryBridge.php';
 
-class plgHikashopVerifactu extends JPlugin
+class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
 {
     /**
      * Registra el logger de Joomla para la categoría 'verifactu' (sin esto,
-     * JLog::add() no escribe nada a ningún archivo -- era el bug por el que
+     * \Joomla\CMS\Log\Log::add() no escribe nada a ningún archivo -- era el bug por el que
      * no aparecía nada en administrator/logs/). Además escribe una copia
      * directa a un archivo dentro del propio plugin, como respaldo fiable
      * para depurar mientras probamos la instalación.
@@ -16,11 +16,11 @@ class plgHikashopVerifactu extends JPlugin
     {
         static $loggerRegistrado = false;
         if (!$loggerRegistrado) {
-            JLog::addLogger(['text_file' => 'verifactu.php'], JLog::ALL, ['verifactu']);
+            \Joomla\CMS\Log\Log::addLogger(['text_file' => 'verifactu.php'], \Joomla\CMS\Log\Log::ALL, ['verifactu']);
             $loggerRegistrado = true;
         }
 
-        JLog::add($mensaje, $nivel, 'verifactu');
+        \Joomla\CMS\Log\Log::add($mensaje, $nivel, 'verifactu');
 
         // Respaldo directo, independiente de la configuración de logs de Joomla
         @file_put_contents(
@@ -68,7 +68,7 @@ class plgHikashopVerifactu extends JPlugin
                 $out['pais'] = $get($config, ['store_country', 'store_country_name']) ?: 'España';
             }
         } catch (\Throwable $e) {
-            self::log('No se pudo leer la configuración de HikaShop: ' . $e->getMessage(), JLog::WARNING);
+            self::log('No se pudo leer la configuración de HikaShop: ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
         }
 
         // Fallback directo a la tabla de configuración de HikaShop por si
@@ -264,7 +264,7 @@ class plgHikashopVerifactu extends JPlugin
 
     private function dbTableName(string $table): string
     {
-        return str_replace('#__', JFactory::getDbo()->getPrefix(), $table);
+        return str_replace('#__', \Joomla\CMS\Factory::getDbo()->getPrefix(), $table);
     }
 
     /**
@@ -274,7 +274,7 @@ class plgHikashopVerifactu extends JPlugin
      */
     private function db()
     {
-        return JFactory::getDbo();
+        return \Joomla\CMS\Factory::getDbo();
     }
 
     private function saveDeclarationSnapshot(array $d, string $declaration, string $conditions): void
@@ -329,12 +329,12 @@ class plgHikashopVerifactu extends JPlugin
      */
     public function onAjaxVerifactu()
     {
-        $user = JFactory::getUser();
+        $user = \Joomla\CMS\Factory::getUser();
         if ($user->guest || (!$user->authorise('core.manage') && !$user->authorise('core.admin'))) {
             throw new \RuntimeException('Acceso no autorizado', 403);
         }
 
-        $task = JFactory::getApplication()->input->getCmd('task', 'declaracion');
+        $task = \Joomla\CMS\Factory::getApplication()->input->getCmd('task', 'declaracion');
 
         if ($task === 'cargar_datos') {
             $d = $this->getDeclarationData();
@@ -392,7 +392,7 @@ class plgHikashopVerifactu extends JPlugin
                 return;
             }
 
-            $app = JFactory::getApplication();
+            $app = \Joomla\CMS\Factory::getApplication();
             if (!$app->isClient('administrator')) {
                 return;
             }
@@ -457,7 +457,7 @@ class plgHikashopVerifactu extends JPlugin
                 . 'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",moveVerifactuFields);}else{moveVerifactuFields();}'
                 . '})();</script>';
         } catch (\Throwable $e) {
-            self::log('Error mostrando los campos VeriFactu en la edición del pedido: ' . $e->getMessage(), JLog::WARNING);
+            self::log('Error mostrando los campos VeriFactu en la edición del pedido: ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
         }
     }
 
@@ -471,7 +471,7 @@ class plgHikashopVerifactu extends JPlugin
     public function onBeforeOrderUpdate(&$order, &$do)
     {
         try {
-            $app = JFactory::getApplication();
+            $app = \Joomla\CMS\Factory::getApplication();
             if (!$app->isClient('administrator')) {
                 return;
             }
@@ -512,7 +512,7 @@ class plgHikashopVerifactu extends JPlugin
 
             self::log('Campos de abono guardados para pedido ' . $orderId . ': tipo=' . ($hasTipo ? $order->verifactu_tipo_abono : '[sin cambio]'));
         } catch (\Throwable $e) {
-            self::log('Error guardando los campos de abono del pedido: ' . $e->getMessage(), JLog::WARNING);
+            self::log('Error guardando los campos de abono del pedido: ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
         }
     }
 
@@ -546,7 +546,7 @@ class plgHikashopVerifactu extends JPlugin
             return;
         }
 
-        $db = JFactory::getDbo();
+        $db = \Joomla\CMS\Factory::getDbo();
 
         // El objeto $order en memoria puede llegar incompleto en este punto
         // según el camino por el que se cambió el estado -- confirmado con
@@ -594,7 +594,7 @@ class plgHikashopVerifactu extends JPlugin
                     self::log('Datos de abono recargados directamente: tipo=' . $order->verifactu_tipo_abono . ', comentario=' . ($order->verifactu_comentario_abono !== '' ? '[presente]' : '[vacío]'));
                 }
             } catch (\Throwable $e) {
-                self::log('No se pudieron recargar los campos de abono directamente: ' . $e->getMessage(), JLog::WARNING);
+                self::log('No se pudieron recargar los campos de abono directamente: ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
             }
 
             self::log('Pedido ' . $order->order_id . ' recargado desde BBDD antes de enviar. order_full_price=' . ($order->order_full_price ?? '?') . ', order_invoice_number=' . ($order->order_invoice_number ?? '?'));
@@ -611,7 +611,7 @@ class plgHikashopVerifactu extends JPlugin
             // Sin número de factura asignado por HikaShop no hay nada que enviar a la AEAT.
             // Revisa que "invoice_generated" se alcance DESPUÉS de que HikaShop numere la factura
             // (ver la opción de configuración invoice_order_statuses del componente).
-            self::log('Pedido ' . $order->order_id . ' llegó a invoice_generated sin order_invoice_number, no se envía.', JLog::WARNING);
+            self::log('Pedido ' . $order->order_id . ' llegó a invoice_generated sin order_invoice_number, no se envía.', \Joomla\CMS\Log\Log::WARNING);
             return;
         }
 
@@ -627,12 +627,12 @@ class plgHikashopVerifactu extends JPlugin
         } catch (\Throwable $e) {
             // No dejar que un fallo en VeriFactu bloquee el cambio de estado del pedido:
             // se registra el error y queda para revisión/reintento manual.
-            self::log('EXCEPCIÓN en pedido ' . $order->order_id . ': ' . $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine(), JLog::ERROR);
+            self::log('EXCEPCIÓN en pedido ' . $order->order_id . ': ' . $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine(), \Joomla\CMS\Log\Log::ERROR);
             return;
         }
 
         if ($resultado['estado'] !== 'aceptado') {
-            self::log('Rechazado/erróneo en pedido ' . $order->order_id . ': ' . json_encode($resultado, JSON_INVALID_UTF8_SUBSTITUTE), JLog::WARNING);
+            self::log('Rechazado/erróneo en pedido ' . $order->order_id . ': ' . json_encode($resultado, JSON_INVALID_UTF8_SUBSTITUTE), \Joomla\CMS\Log\Log::WARNING);
         }
     }
 
@@ -651,7 +651,7 @@ class plgHikashopVerifactu extends JPlugin
             return;
         }
 
-        $db = JFactory::getDbo();
+        $db = \Joomla\CMS\Factory::getDbo();
         $query = $db->getQuery(true)
             ->select('qr_url, invoice_number')
             ->from('#__hikashop_verifactu_registro')

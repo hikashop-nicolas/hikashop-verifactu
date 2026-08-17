@@ -6,13 +6,13 @@ defined('_JEXEC') or die;
  * reales configurados en HikaShop (tabla #__hikashop_orderstatus), en vez de
  * tener el nombre del estado fijado a mano en el código del plugin.
  */
-class JFormFieldOrderstatus extends JFormField
+class JFormFieldOrderstatus extends \Joomla\CMS\Form\FormField
 {
     protected $type = 'Orderstatus';
 
     protected function getInput()
     {
-        $db = JFactory::getDbo();
+        $db = \Joomla\CMS\Factory::getDbo();
         $query = $db->getQuery(true)
             ->select('orderstatus_namekey, orderstatus_name')
             ->from('#__hikashop_orderstatus')
