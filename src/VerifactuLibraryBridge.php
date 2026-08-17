@@ -367,11 +367,19 @@ class VerifactuLibraryBridge
                 if ($tipoFraccion <= 0) {
                     continue;
                 }
-                // El propio HikaShop guarda la base imponible real en ->amount
-                // (confirmado contra un pedido real: 165 × 0.21 = 34.65 y
-                // 165 × 0.052 = 8.58) -- se usa directamente en vez de
-                // recalcularla, evitando errores de redondeo.
-                $baseReal = (float) ($tax->amount ?? 0);
+                // La base se deduce de la propia cuota: base = cuota / tipo.
+                //
+                // El campo ->amount de HikaShop no sirve como base imponible
+                // cuando el pedido lleva gastos de envío o de pago con
+                // impuesto: HikaShop guarda esos gastos con el impuesto ya
+                // incluido y además les vuelve a sumar la cuota al calcular
+                // ->amount, así que la base sale inflada justo en el doble del
+                // impuesto de esos gastos. Comprobado sobre un pedido real
+                // (producto 100 + cargo 20 + envío 12,10 + pago 6,05 al 21 %):
+                // HikaShop guarda amount = 141,30 cuando la base es 135,00, y
+                // base + cuota daba 169,65 frente a un total de 163,35, que es
+                // justo la descuadre que la AEAT rechaza.
+                $baseReal = $importeImpuesto / $tipoFraccion;
 
                 if ($esRecargo($tipoFraccion)) {
                     $lineasRecargo[] = ['tipo' => $tipoFraccion, 'importe' => $importeImpuesto];
