@@ -1,0 +1,2 @@
+-- v0.30.0: correcciones de Declaración Responsable integrada.
+-- No requiere cambios de estructura; la tabla de snapshots se crea bajo demanda.

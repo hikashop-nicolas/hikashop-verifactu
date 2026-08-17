@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="plugin" group="hikashop" method="upgrade">
+    <name>Hikashop Verifactu plugin</name>
+    <author>Locker25</author>
+    <creationDate>16/08/2026</creationDate>
+    <copyright>Locker25</copyright>
+    <license>GPLv2</license>
+    <version>0.30.32</version>
+    <description>Integración de VeriFactu (AEAT) con HikaShop: facturación, QR, envío AEAT, declaración responsable y condiciones de uso.</description>
+
+    <files>
+        <filename plugin="verifactu">verifactu.php</filename>
+        <filename>composer.json</filename>
+        <filename>apply_vendor_patches.sh</filename>
+        <folder>src</folder>
+        <folder>sql</folder>
+        <folder>fields</folder>
+        <folder>vendor</folder>
+    </files>
+    <media folder="media" destination="com_hikashop">
+        <folder>plugins</folder>
+    </media>
+
+    <update>
+        <schemas>
+            <schemapath type="mysql">sql/updates/mysql</schemapath>
+        </schemas>
+    </update>
+    <install>
+        <sql>
+            <file driver="mysql" charset="utf8">sql/install.mysql.utf8.sql</file>
+        </sql>
+    </install>
+    <uninstall>
+        <sql>
+            <file driver="mysql" charset="utf8">sql/uninstall.mysql.utf8.sql</file>
+        </sql>
+    </uninstall>
+
+    <config>
+        <fields name="params" addfieldpath="/plugins/hikashop/verifactu/fields">
+            <fieldset name="basic">
+                <field name="nif_emisor" type="text" label="NIF del emisor" default="" />
+                <field name="nombre_emisor" type="text" label="Nombre/razón social del emisor" default="" />
+                <field name="nif_desarrollador" type="text" label="NIF del desarrollador del software (SistemaInformatico)" default="" description="Si el software lo desarrolla/mantiene un tercero (asesoría, programador externo), pon su NIF aquí. Si lo desarrollas tú mismo, deja igual que el NIF del emisor." />
+                <field name="nombre_desarrollador" type="text" label="Nombre/razón social del desarrollador del software" default="" />
+                <field name="estado_disparador" type="orderstatus" label="Estado que dispara el envío a VeriFactu" default="invoice_generated" description="El plugin envía la factura a la AEAT cuando el pedido pasa a este estado. Se lee directamente de tus estados de pedido configurados en HikaShop." />
+                <field name="campo_tipo_abono" type="text" label="Campo HikaShop: Tipo de abono" default="verifactu_tipo_abono" description="Nombre interno del campo personalizado de pedido/order creado en HikaShop. Recomendado: verifactu_tipo_abono. Debe contener uno de los valores definidos en el plugin." />
+                <field name="entorno" type="list" label="Entorno AEAT" default="pre">
+                    <option value="pre">Pruebas (pre-producción)</option>
+                    <option value="prod">Producción</option>
+                </field>
+                <field name="cert_path" type="text" label="Ruta al certificado digital (.pfx/.p12)" default="" />
+                <field name="cert_pass" type="password" label="Contraseña del certificado" default="" />
+                <field name="envio_modo" type="list" label="Modo de envío" default="cola">
+                    <option value="inmediato">Inmediato (al confirmar factura)</option>
+                    <option value="cola">En cola / lote programado</option>
+                </field>
+                <field name="declaracion_separador" type="declaration" label="Declaración responsable" />
+                <field name="declaracion_nombre" type="text" label="Nombre / razón social para la Declaración Responsable" default="" description="Se puede cargar inicialmente desde los datos del emisor configurados en el plugin. El valor queda editable y se guarda en la configuración del plugin." />
+                <field name="declaracion_nif" type="text" label="NIF para la Declaración Responsable" default="" description="Se puede cargar inicialmente desde el NIF del emisor configurado en el plugin. El valor queda editable." />
+                <field name="declaracion_direccion" type="textarea" label="Dirección fiscal para la Declaración Responsable" default="" rows="3" description="Se puede cargar inicialmente desde la dirección de la tienda de HikaShop. El valor queda editable." />
+                <field name="declaracion_cp" type="text" label="Código postal" default="" />
+                <field name="declaracion_localidad" type="text" label="Localidad" default="" />
+                <field name="declaracion_provincia" type="text" label="Provincia" default="" />
+                <field name="declaracion_pais" type="text" label="País" default="España" />
+                <field name="declaracion_lugar" type="text" label="Lugar de firma" default="" />
+                <field name="declaracion_fecha" type="text" label="Fecha de firma" default="" description="Formato DD/MM/YYYY. Si se deja vacío, se utilizará la fecha actual al generar la declaración." />
+                <field name="declaracion_uso_propio" type="radio" label="Uso exclusivo por este obligado tributario" default="1">
+                    <option value="1">Sí</option>
+                    <option value="0">No</option>
+                </field>
+                <field name="declaracion_version" type="text" label="Versión del sistema declarada" default="0.30.7" description="Versión concreta del plugin/sistema a la que corresponde la declaración." />
+
+            </fieldset>
+        </fields>
+    </config>
+</extension>

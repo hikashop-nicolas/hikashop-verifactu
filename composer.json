@@ -1,0 +1,17 @@
+{
+    "name": "custom/plg-hikashop-verifactu",
+    "description": "Integración VeriFactu para HikaShop, basada en eseperio/verifactu-php",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "php": ">=8.1",
+        "ext-soap": "*",
+        "ext-libxml": "*",
+        "ext-openssl": "*",
+        "ext-dom": "*",
+        "eseperio/verifactu-php": "dev-master",
+        "bacon/bacon-qr-code": "^3.0",
+        "robrichards/xmlseclibs": "^3.1",
+        "vlucas/phpdotenv": "^5.5"
+    }
+}
