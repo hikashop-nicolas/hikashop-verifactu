@@ -34,8 +34,30 @@ jobs:
           name: plg_hikashop_verifactu
           path: build/*.zip
 
+      # A released version: the package is attached to that release and stays.
       - name: Attach the package to the release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          files: build/*.zip
+
+      # Every commit on main: the package built from it replaces the one on the
+      # "latest-build" pre-release, so there is always a download matching the
+      # current code without minting a version number for every commit.
+      - name: Publish the build of this commit
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-build
+          name: Latest build of main
+          prerelease: true
+          body: |
+            Package built automatically from
+            [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }}),
+            ${{ github.event.head_commit.message }}
+
+            This is the current state of the main branch, not a released
+            version. Released versions are on the
+            [releases page](https://github.com/${{ github.repository }}/releases),
+            and their changes are listed in CHANGELOG.md.
           files: build/*.zip

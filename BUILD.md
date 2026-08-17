@@ -52,11 +52,16 @@ from the script.
 
 ## Continuous integration
 
-`.github/workflows/build.yml` syntax checks the plugin on every push and builds
-the package, which is kept as a run artifact.
+`.github/workflows/build.yml` syntax checks the plugin and builds the package on
+every push.
 
-Releases are cut by hand, not on every commit: bump `<version>` in
-`verifactu.xml`, add the entry to `CHANGELOG.md`, then push the matching tag.
+Every commit on `main` publishes its package on the
+[latest-build](https://github.com/hikashop-nicolas/hikashop-verifactu/releases/tag/latest-build)
+pre-release, which always holds the current state of the branch. It is meant for
+testing a fix as soon as it lands, not for a production shop.
+
+Released versions are cut by hand: bump `<version>` in `verifactu.xml`, add the
+entry to `CHANGELOG.md`, then push the matching tag.
 
 ```
 git tag v0.31.0

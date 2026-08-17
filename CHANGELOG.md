@@ -5,6 +5,10 @@ bumped when a package is worth publishing, a `v<version>` tag is pushed, and the
 build workflow attaches the installable zip to the matching
 [release](https://github.com/hikashop-nicolas/hikashop-verifactu/releases).
 
+Every commit on `main` is built and published too, on the
+[latest-build](https://github.com/hikashop-nicolas/hikashop-verifactu/releases/tag/latest-build)
+pre-release, so a fix can be tested the moment it lands.
+
 ## 0.31.0
 
 First package built from this repository. It carries every fix listed below on
