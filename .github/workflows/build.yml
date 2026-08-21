@@ -24,7 +24,7 @@ jobs:
           tools: composer
 
       - name: Syntax check the plugin's own code
-        run: find verifactu.php src fields media scripts -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find verifactu.php script.php src fields layouts scripts -name '*.php' -print0 | xargs -0 -n1 php -l
 
       - name: Build the package
         run: ./build.sh
