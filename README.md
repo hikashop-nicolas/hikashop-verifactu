@@ -335,17 +335,15 @@ Por tanto, antes de seleccionar un estado, comprueba el flujo de estados de tu t
 
 ## 12. Factura PDF adjunta al correo
 
-Si la tienda utiliza el plugin **HikaShop - generate PDF invoice / Attach Invoice**, la factura PDF adjunta puede utilizar una plantilla independiente.
-
-Si el QR no aparece en el PDF adjunto, comprueba:
+Si la tienda utiliza el plugin **HikaShop - generate PDF invoice / Attach Invoice**, la factura PDF adjunta utiliza una plantilla propia. El plugin instala su plantilla, que añade el bloque QR, en la ruta donde HikaShop busca las suyas:
 
 ```text
-httpdocs/plugins/hikashop/attachinvoice/attachinvoice/invoice.php
+media/com_hikashop/plugins/invoice.php
 ```
 
-La plantilla puede requerir la integración específica del bloque QR VeriFactu.
+La copia la hace el script de instalación del plugin, y la borra al desinstalarlo. Si ya existe ahí una plantilla escrita por la tienda, el plugin la respeta y avisa: en ese caso hay que añadir el bloque QR a esa plantilla a mano.
 
-**Este apartado solo debe modificarse si la instalación utiliza ese plugin y la factura PDF adjunta no muestra el QR.**
+Si el QR no aparece en el PDF adjunto, comprueba que ese archivo existe y que el parámetro «Invoice layout» del plugin Attach Invoice sigue apuntando a `invoice`.
 
 
 ## 13. Comprobaciones finales

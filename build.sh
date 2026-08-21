@@ -33,7 +33,7 @@ mkdir -p "$STAGE"
 
 echo "== assembling"
 cp verifactu.php verifactu.xml script.php composer.json "$STAGE/"
-cp -R src sql fields media vendor "$STAGE/"
+cp -R src sql fields layouts vendor "$STAGE/"
 
 # Documentation and test material of the dependencies: never executed, and the
 # AEAT specification PDFs alone are ten times the size of everything else.

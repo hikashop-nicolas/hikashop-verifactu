@@ -2,13 +2,19 @@
 defined('_JEXEC') or die;
 
 /**
- * Creates the two order columns the plugin needs.
+ * Creates the two order columns the plugin needs, and installs the invoice
+ * layout override into the HikaShop media folder.
  *
- * They used to be created by the install SQL with ADD COLUMN IF NOT EXISTS,
- * which only MariaDB understands: on MySQL the statement is a syntax error, the
- * installer stops on it, and the whole install fails. The check is done here
- * against INFORMATION_SCHEMA instead, which both understand, and it runs on
- * install and on update so an existing site catches up.
+ * The columns used to be created by the install SQL with ADD COLUMN IF NOT
+ * EXISTS, which only MariaDB understands: on MySQL the statement is a syntax
+ * error, the installer stops on it, and the whole install fails. The check is
+ * done here against INFORMATION_SCHEMA instead, which both understand, and it
+ * runs on install and on update so an existing site catches up.
+ *
+ * The layout used to be shipped by a <media destination="com_hikashop"> tag.
+ * On uninstall Joomla deletes the whole destination folder of such a tag, which
+ * took away media/com_hikashop entirely: HikaShop's css, js, images, mail
+ * templates and uploaded files. It is copied and removed file by file here.
  */
 class PlgHikashopVerifactuInstallerScript
 {
@@ -29,11 +35,20 @@ class PlgHikashopVerifactuInstallerScript
         ],
     ];
 
+    /**
+     * Where HikaShop looks for an invoice layout override, and the marker that
+     * tells our own copy apart from a layout written by the merchant.
+     */
+    private const LAYOUT_TARGET = '/media/com_hikashop/plugins/invoice.php';
+    private const LAYOUT_MARKER = 'PLG_HIKASHOP_VERIFACTU';
+
     public function postflight($type, $parent)
     {
         if ($type === 'uninstall') {
             return true;
         }
+
+        $this->installLayout($parent);
 
         $db = \Joomla\CMS\Factory::getContainer()->get('DatabaseDriver');
 
@@ -56,6 +71,75 @@ class PlgHikashopVerifactuInstallerScript
                 }
             }
         }
+
+        return true;
+    }
+
+    /**
+     * Copies the invoice layout override next to HikaShop's own layouts. An
+     * existing file without our marker belongs to the merchant and is kept.
+     */
+    private function installLayout($parent): bool
+    {
+        $source = $parent->getParent()->getPath('extension_root') . '/layouts/invoice.php';
+        $target = JPATH_ROOT . self::LAYOUT_TARGET;
+
+        if (!is_file($source)) {
+            return false;
+        }
+
+        if (is_file($target) && strpos((string) file_get_contents($target), self::LAYOUT_MARKER) === false) {
+            \Joomla\CMS\Factory::getApplication()->enqueueMessage(
+                'VeriFactu: ya existe una plantilla de factura en ' . self::LAYOUT_TARGET . '. Se ha conservado, el QR no se añadirá automáticamente.',
+                'warning'
+            );
+
+            return false;
+        }
+
+        $folder = \dirname($target);
+
+        if (!is_dir($folder) && !@mkdir($folder, 0755, true) && !is_dir($folder)) {
+            \Joomla\CMS\Factory::getApplication()->enqueueMessage(
+                'VeriFactu: no se pudo crear la carpeta ' . $folder . ' para la plantilla de factura.',
+                'warning'
+            );
+
+            return false;
+        }
+
+        if (!@copy($source, $target)) {
+            \Joomla\CMS\Factory::getApplication()->enqueueMessage(
+                'VeriFactu: no se pudo instalar la plantilla de factura en ' . self::LAYOUT_TARGET . '.',
+                'warning'
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Removes our layout override, and nothing else. Left behind it would call
+     * a table that no longer exists on every invoice.
+     */
+    public function uninstall($parent)
+    {
+        $target = JPATH_ROOT . self::LAYOUT_TARGET;
+
+        if (!is_file($target)) {
+            return true;
+        }
+
+        if (strpos((string) file_get_contents($target), self::LAYOUT_MARKER) === false) {
+            return true;
+        }
+
+        @unlink($target);
+
+        // Only when nothing else lives there: other layouts may be the merchant's.
+        @rmdir(\dirname($target));
 
         return true;
     }

@@ -5,7 +5,7 @@
     <creationDate>16/08/2026</creationDate>
     <copyright>Locker25</copyright>
     <license>GPLv2</license>
-    <version>0.31.0</version>
+    <version>0.31.1</version>
     <description>Integración de VeriFactu (AEAT) con HikaShop: facturación, QR, envío AEAT, declaración responsable y condiciones de uso.</description>
 
     <scriptfile>script.php</scriptfile>
@@ -16,11 +16,9 @@
         <folder>src</folder>
         <folder>sql</folder>
         <folder>fields</folder>
+        <folder>layouts</folder>
         <folder>vendor</folder>
     </files>
-    <media folder="media" destination="com_hikashop">
-        <folder>plugins</folder>
-    </media>
 
     <update>
         <schemas>

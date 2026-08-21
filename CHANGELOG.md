@@ -9,6 +9,22 @@ Every commit on `main` is built and published too, on the
 [latest-build](https://github.com/hikashop-nicolas/hikashop-verifactu/releases/tag/latest-build)
 pre-release, so a fix can be tested the moment it lands.
 
+## 0.31.1
+
+- **Uninstalling no longer deletes the HikaShop media folder.** The invoice
+  layout override was shipped by a `<media destination="com_hikashop">` tag.
+  Joomla deletes the whole destination folder of such a tag when the extension
+  is uninstalled, so removing the plugin took `media/com_hikashop` with it:
+  HikaShop's css, js, images, mail templates and the files uploaded to
+  `upload/safe`. The front end and the back end were left unstyled. The layout
+  is now copied into `media/com_hikashop/plugins/invoice.php` by the install
+  script and that single file is removed on uninstall. A layout already present
+  and not written by this plugin is kept, with a warning.
+
+  Sites which already uninstalled a previous version get their media folder
+  back by reinstalling HikaShop over the existing installation. Files served
+  from `media/com_hikashop/upload/safe` have to come from a backup.
+
 ## 0.31.0
 
 First package built from this repository. It carries every fix listed below on
