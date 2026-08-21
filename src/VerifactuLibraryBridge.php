@@ -534,21 +534,14 @@ class VerifactuLibraryBridge
 
             // Identificación del destinatario según su país:
             // - ES: NIF español en <NIF>.
-            // - Extranjero: <IDOtro> con país ISO, IDType 02 e identificador sin prefijo ISO.
+            // - Extranjero: <IDOtro> con país ISO e IDType según el documento.
             $codigoPaisCliente = $this->obtenerCodigoPaisFactura($billing);
 
             if ($codigoPaisCliente === 'ES') {
-                $recipient->nif = $nifCliente;
+                // Un cliente español que escribe su NIF con el prefijo ES lo da
+                // en formato intracomunitario; <NIF> lo quiere sin prefijo.
+                $recipient->nif = preg_replace('/^ES(?=[0-9A-Z]{9}$)/', '', $nifCliente);
             } elseif ($codigoPaisCliente !== '') {
-                $otherId = new OtherID();
-                $otherId->countryCode = $codigoPaisCliente;
-                $otherId->idType = '02';
-
-                // Para IDType 02 (NIF-IVA), conservar el identificador
-                // intracomunitario completo tal como lo proporciona HikaShop
-                // (por ejemplo, PT503890278). CodigoPais se informa además
-                // en su campo propio. La AEAT ha rechazado 503890278 con
-                // error 1103 en este caso concreto.
                 $idExtranjero = strtoupper(trim((string) $nifCliente));
                 if ($idExtranjero === '') {
                     return [
@@ -559,6 +552,9 @@ class VerifactuLibraryBridge
                     ];
                 }
 
+                $otherId = new OtherID();
+                $otherId->countryCode = $codigoPaisCliente;
+                $otherId->idType = $this->tipoIdentificacionExtranjera($codigoPaisCliente, $idExtranjero);
                 $otherId->id = $idExtranjero;
                 $recipient->setOtherId($otherId);
             } else {
@@ -699,6 +695,40 @@ class VerifactuLibraryBridge
             'errores' => $response->lineResponses ?? [],
             'qr' => $qrImage,
         ];
+    }
+
+    /**
+     * Países de la UE, con el prefijo que la AEAT espera en un NIF-IVA. Grecia
+     * es el caso especial: ISO GR, prefijo intracomunitario EL.
+     */
+    private const PREFIJO_VAT_UE = [
+        'AT' => 'AT', 'BE' => 'BE', 'BG' => 'BG', 'CY' => 'CY', 'CZ' => 'CZ',
+        'DE' => 'DE', 'DK' => 'DK', 'EE' => 'EE', 'ES' => 'ES', 'FI' => 'FI',
+        'FR' => 'FR', 'GR' => 'EL', 'HR' => 'HR', 'HU' => 'HU', 'IE' => 'IE',
+        'IT' => 'IT', 'LT' => 'LT', 'LU' => 'LU', 'LV' => 'LV', 'MT' => 'MT',
+        'NL' => 'NL', 'PL' => 'PL', 'PT' => 'PT', 'RO' => 'RO', 'SE' => 'SE',
+        'SI' => 'SI', 'SK' => 'SK', 'XI' => 'XI',
+    ];
+
+    /**
+     * Decide el IDType del destinatario extranjero.
+     *
+     * 02 es NIF-IVA: solo vale para un número intracomunitario, que la AEAT
+     * contrasta contra VIES. Un cliente que escribe el prefijo de su país está
+     * dando ese número; uno que escribe solo su número nacional no está en VIES
+     * y la AEAT lo rechaza si se declara como 02. Ese caso va como 04,
+     * identificador en el país de residencia, con CodigoPais en su campo. Fuera
+     * de la UE no existe el NIF-IVA, así que siempre es 04.
+     */
+    private function tipoIdentificacionExtranjera(string $codigoPais, string $identificador): string
+    {
+        $prefijo = self::PREFIJO_VAT_UE[$codigoPais] ?? '';
+
+        if ($prefijo === '' || strlen($identificador) <= strlen($prefijo)) {
+            return '04';
+        }
+
+        return strpos($identificador, $prefijo) === 0 ? '02' : '04';
     }
 
     /**

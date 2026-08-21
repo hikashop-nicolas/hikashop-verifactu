@@ -9,6 +9,22 @@ Every commit on `main` is built and published too, on the
 [latest-build](https://github.com/hikashop-nicolas/hikashop-verifactu/releases/tag/latest-build)
 pre-release, so a fix can be tested the moment it lands.
 
+## Unreleased
+
+- **Foreign customers: the identifier is declared with the right type.** Any
+  recipient outside Spain was sent with `IDType` 02, NIF-IVA. That value is for
+  an intracommunity VAT number, which the AEAT checks against VIES, so a
+  Portuguese customer giving their national number, or any customer outside the
+  EU, was rejected and the invoice got no QR. The type is now 02 only when the
+  identifier carries its country's VAT prefix (PT503890278, and EL for Greece),
+  and 04, identifier in the country of residence, otherwise, with `CodigoPais`
+  filled in either way. A Spanish NIF typed with an ES prefix loses it before
+  going into `<NIF>`.
+
+  Checked against the library's own validation, not against the AEAT: we have
+  no certificate here, so this wants a run in the pre-production environment
+  before it is trusted in production.
+
 ## 0.31.1
 
 - **Uninstalling no longer deletes the HikaShop media folder.** The invoice
