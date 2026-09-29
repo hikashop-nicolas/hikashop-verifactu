@@ -541,6 +541,10 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
         // --- fin Registro de facturación VeriFactu ---
 
         if ($task === 'guardar_datos') {
+            // escribe la configuración: solo desde el propio formulario del plugin
+            if (!\Joomla\CMS\Session\Session::checkToken('post')) {
+                throw new \RuntimeException('Token de formulario no válido', 403);
+            }
             $input = \Joomla\CMS\Factory::getApplication()->input;
             $nombre = trim((string) $input->post->get('declaracion_nombre', '', 'string'));
             $nif = trim((string) $input->post->get('declaracion_nif', '', 'string'));
@@ -636,6 +640,7 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
         'pendiente', 'enviado', 'aceptado', 'aceptado_con_errores', 'rechazado',
         'error', 'error_tecnico', 'error_validacion', 'error_desglose_vacio',
         'error_sustitucion_sin_nif', 'error_aviso_legal_no_aceptado',
+        'error_concurrencia', 'error_id_destinatario', 'error_pais_destinatario', 'error_simplificada_exenta',
     ];
 
     /**
@@ -1467,6 +1472,16 @@ HTML;
         // No ejecutar durante instalaciones/actualizaciones CLI ni en peticiones
         // que no tengan Joomla completamente disponible.
         try {
+            // abre el certificado y consulta la BBDD: en la administración y una vez al día basta
+            $app = \Joomla\CMS\Factory::getApplication();
+            if (!$app->isClient('administrator')) {
+                return;
+            }
+            $marca = rtrim((string) $app->get('tmp_path', JPATH_ROOT . '/tmp'), '/\\') . '/verifactu_certificado_' . date('Ymd');
+            if (is_file($marca)) {
+                return;
+            }
+            @touch($marca);
             $this->comprobarAvisosCertificado();
         } catch (\Throwable $e) {
             self::log('Avisos de caducidad: ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
@@ -1608,11 +1623,21 @@ HTML;
         $now = new \DateTimeImmutable('now', new \DateTimeZone(date_default_timezone_get()));
         $thresholds = [6, 4, 2, 1];
 
+        // solo el aviso más cercano: en una primera comprobación a 1 mes de la
+        // caducidad, un correo y no cuatro; los anteriores se dan por enviados
+        $aplicables = [];
         foreach ($thresholds as $months) {
             $trigger = $data['expiry']->modify('-' . $months . ' months');
-            if ($now < $trigger || $now >= $data['expiry']) {
-                continue;
+            if ($now >= $trigger && $now < $data['expiry']) {
+                $aplicables[] = $months;
             }
+        }
+        if (!$aplicables) {
+            return;
+        }
+        $anteriores = array_diff($aplicables, [min($aplicables)]);
+
+        foreach ([min($aplicables)] as $months) {
 
             $query = $db->getQuery(true)
                 ->select('COUNT(*)')
@@ -1663,6 +1688,14 @@ HTML;
                 );
             $db->setQuery($insert);
             $db->execute();
+
+            foreach ($anteriores as $anterior) {
+                $db->setQuery(
+                    'INSERT IGNORE INTO ' . $table . ' (' . $db->quoteName('huella') . ', ' . $db->quoteName('umbral_meses') . ', ' . $db->quoteName('fecha_envio') . ') VALUES ('
+                    . $db->quote($data['fingerprint']) . ', ' . (int) $anterior . ', ' . $db->quote($now->format('Y-m-d H:i:s')) . ')'
+                );
+                $db->execute();
+            }
 
             self::log('Aviso de caducidad enviado: ' . $months . ' meses, certificado con caducidad ' . $data['expiry']->format('d/m/Y') . ', destinatario ' . $recipient . '.');
         }

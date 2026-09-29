@@ -84,6 +84,29 @@ class PlgHikashopVerifactuInstallerScript
      * Where HikaShop looks for an invoice layout override, and the marker that
      * tells our own copy apart from a layout written by the merchant.
      */
+    /** Versión instalada antes de esta actualización ('' si no se sabe). */
+    private string $versionAnterior = '';
+
+    private function versionInstalada(): string
+    {
+        try {
+            $db = \Joomla\CMS\Factory::getContainer()->get('DatabaseDriver');
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('manifest_cache')
+                    ->from('#__extensions')
+                    ->where('type = ' . $db->quote('plugin'))
+                    ->where('folder = ' . $db->quote('hikashop'))
+                    ->where('element = ' . $db->quote('verifactu'))
+            );
+            $cache = json_decode((string) $db->loadResult(), true);
+
+            return is_array($cache) ? (string) ($cache['version'] ?? '') : '';
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
     private const LAYOUT_TARGET = '/media/com_hikashop/plugins/invoice.php';
     private const LAYOUT_MARKER = 'PLG_HIKASHOP_VERIFACTU';
 
@@ -131,6 +154,28 @@ class PlgHikashopVerifactuInstallerScript
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     ];
 
+    /**
+     * eseperio/verifactu-php pide PHP 8.1: con una versión anterior el plugin
+     * se instalaría y daría un error fatal en la primera factura.
+     */
+    public function preflight($type, $parent)
+    {
+        if ($type === 'update') {
+            $this->versionAnterior = $this->versionInstalada();
+        }
+
+        if ($type !== 'uninstall' && version_compare(PHP_VERSION, '8.1.0', '<')) {
+            \Joomla\CMS\Factory::getApplication()->enqueueMessage(
+                'VeriFactu necesita PHP 8.1 o superior; este servidor usa PHP ' . PHP_VERSION . '. No se ha instalado.',
+                'error'
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
     public function postflight($type, $parent)
     {
         if ($type === 'uninstall') {
@@ -140,7 +185,10 @@ class PlgHikashopVerifactuInstallerScript
         if ($type === 'update') {
             $this->migrarAceptacionAvisoLegal();
             $this->migrarOpcionCancelacionTipoAbono();
-            $this->migrarPantallasCamposAbono();
+            // una sola vez: después, las pantallas que el comerciante elija se respetan
+            if ($this->versionAnterior === '' || version_compare($this->versionAnterior, '0.34.54', '<')) {
+                $this->migrarPantallasCamposAbono();
+            }
             $this->migrarPlaceholderComentarioAbono();
         }
 

@@ -80,6 +80,7 @@ class JFormFieldDeclaration extends \Joomla\CMS\Form\FormField
     function initVerifactuDeclaration(){
         const loadUrl = ' . json_encode($ajax . 'cargar_datos') . ';
         const saveUrl = ' . json_encode($ajax . 'guardar_datos') . ';
+        const formToken = ' . json_encode(\Joomla\CMS\Session\Session::getFormToken()) . ';
         const declarationUrl = ' . json_encode($ajax . 'declaracion') . ';
         const conditionsUrl = ' . json_encode($ajax . 'condiciones') . ';
         const actionBlock = document.getElementById("verifactu-declaration-actions");
@@ -202,6 +203,7 @@ class JFormFieldDeclaration extends \Joomla\CMS\Form\FormField
             formData.append("declaracion_nif",getValue("params][declaracion_nif"));
             formData.append("declaracion_direccion",getValue("params][declaracion_direccion"));
             formData.append("declaracion_lugar",getValue("params][declaracion_lugar"));
+            formData.append(formToken,"1");
             fetch(saveUrl,{method:"POST",body:formData,credentials:"same-origin",headers:{"X-Requested-With":"XMLHttpRequest"}})
                 .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j&&j.message)||"Error HTTP "+r.status);return j;});})
                 .then(function(payload){const data=unwrap(payload);if(data.success===false)throw new Error(data.message||"No se pudieron guardar los datos.");result.className="alert alert-success";result.textContent=data.message||"Datos guardados correctamente.";})
