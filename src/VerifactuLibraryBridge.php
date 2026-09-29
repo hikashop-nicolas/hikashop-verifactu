@@ -410,18 +410,18 @@ class VerifactuLibraryBridge
     }
 
     /**
-     * Misma factura que obtenerFacturaParaAnular() estaría dispuesta a
-     * anular (última "alta" aceptada de este pedido, sin anulación
-     * aceptada posterior) -- es también "la factura original" para una
-     * rectificación por diferencias sobre este mismo pedido. Aquí además se
-     * trae el desglose (base/tipo/cuota de IVA y de recargo) que
-     * guardarRegistro() almacena desde v0.34.30, necesario para calcular la
-     * diferencia.
+     * La factura que se rectifica por diferencias: la última "alta" aceptada y
+     * no anulada del pedido que no sea a su vez una rectificación por
+     * diferencias (R1/R5 cuya factura rectificada es otra alta del mismo
+     * pedido). Se le añaden los importes acumulados (su desglose más el de las
+     * rectificaciones por diferencias ya aceptadas sobre ella) y el número de
+     * esas rectificaciones: la diferencia se calcula siempre contra lo ya
+     * declarado, así que volver a guardar el pedido no genera otra R1.
      */
     private function obtenerFacturaParaRectificarPorDiferencias(int $orderId): ?object
     {
         $query = $this->db->getQuery(true)
-            ->select(['invoice_number', 'invoice_date', 'nif_emisor', 'tipo_factura', 'base_imponible', 'tipo_iva', 'cuota_iva', 'tipo_recargo', 'recargo_equivalencia', 'clave_regimen', 'operacion_exenta'])
+            ->select(['invoice_number', 'invoice_date', 'nif_emisor', 'tipo_factura', 'factura_rectificada', 'base_imponible', 'tipo_iva', 'cuota_iva', 'tipo_recargo', 'recargo_equivalencia', 'clave_regimen', 'operacion_exenta'])
             ->from('#__hikashop_verifactu_registro')
             ->where('order_id = ' . $orderId)
             ->where('tipo_registro = ' . $this->db->quote('alta'))
@@ -434,13 +434,54 @@ class VerifactuLibraryBridge
                 . ' AND estado_envio IN (' . $this->db->quote('aceptado') . ',' . $this->db->quote('aceptado_con_errores') . ')'
                 . ')'
             )
-            ->order('id DESC')
-            ->setLimit(1);
+            ->order('id ASC');
         $this->db->setQuery($query);
+        $filas = $this->db->loadObjectList() ?: [];
 
-        $fila = $this->db->loadObject();
+        $numeros = [];
+        foreach ($filas as $fila) {
+            $numeros[(string) $fila->invoice_number] = true;
+        }
 
-        return $fila ?: null;
+        $base = null;
+        $diferencias = [];
+        foreach ($filas as $fila) {
+            $esDiferencia = in_array((string) $fila->tipo_factura, ['R1', 'R5'], true)
+                && $fila->factura_rectificada !== null
+                && (string) $fila->factura_rectificada !== (string) $fila->invoice_number
+                && isset($numeros[(string) $fila->factura_rectificada]);
+            if ($esDiferencia) {
+                $diferencias[] = $fila;
+            } else {
+                $base = $fila;
+            }
+        }
+
+        if ($base === null) {
+            return null;
+        }
+
+        $base->base_acumulada = $base->base_imponible !== null ? (float) $base->base_imponible : null;
+        $base->cuota_acumulada = $base->cuota_iva !== null ? (float) $base->cuota_iva : null;
+        $base->recargo_acumulado = $base->recargo_equivalencia !== null ? (float) $base->recargo_equivalencia : null;
+        $base->rectificaciones = 0;
+        foreach ($diferencias as $dif) {
+            if ((string) $dif->factura_rectificada !== (string) $base->invoice_number) {
+                continue;
+            }
+            $base->rectificaciones++;
+            if ($base->base_acumulada !== null) {
+                $base->base_acumulada += (float) $dif->base_imponible;
+            }
+            if ($base->cuota_acumulada !== null) {
+                $base->cuota_acumulada += (float) $dif->cuota_iva;
+            }
+            if ($dif->recargo_equivalencia !== null) {
+                $base->recargo_acumulado = (float) $base->recargo_acumulado + (float) $dif->recargo_equivalencia;
+            }
+        }
+
+        return $base;
     }
 
     private function obtenerFacturaPorTipo(int $orderId, string $tipoFactura): ?object
@@ -535,7 +576,7 @@ class VerifactuLibraryBridge
             $prefix . 'hikashop_verifactu_numeracion_asignada' => "CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `order_id` INT UNSIGNED NOT NULL,
-                `familia` VARCHAR(2) NOT NULL,
+                `familia` VARCHAR(10) NOT NULL,
                 `numero` VARCHAR(60) NOT NULL,
                 `numero_original_hikashop` VARCHAR(60) NULL,
                 `created` DATETIME NOT NULL,
@@ -552,6 +593,29 @@ class VerifactuLibraryBridge
                 VerifactuLog::add('Error creando tabla ' . $tabla . ': ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
             }
         }
+
+        $this->ensancharFamilia($prefix . 'hikashop_verifactu_numeracion_asignada');
+    }
+
+    /**
+     * Red de seguridad de script.php::migrarFamiliaAncha(): las claves RD1,
+     * RD2... de las rectificaciones por diferencias no caben en VARCHAR(2).
+     */
+    private function ensancharFamilia(string $tabla): void
+    {
+        try {
+            $this->db->setQuery(
+                'SELECT CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE()'
+                . ' AND TABLE_NAME = ' . $this->db->quote($tabla) . ' AND COLUMN_NAME = ' . $this->db->quote('familia')
+            );
+            $largo = $this->db->loadResult();
+            if ($largo !== null && (int) $largo < 10) {
+                $this->db->setQuery('ALTER TABLE ' . $this->db->quoteName($tabla) . ' MODIFY COLUMN `familia` VARCHAR(10) NOT NULL');
+                $this->db->execute();
+            }
+        } catch (\Throwable $e) {
+            VerifactuLog::add('Error ampliando la columna familia de ' . $tabla . ': ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
+        }
     }
 
     /**
@@ -563,7 +627,7 @@ class VerifactuLibraryBridge
         $tabla = $this->db->getPrefix() . 'hikashop_verifactu_fecha_expedicion';
         $sql = "CREATE TABLE IF NOT EXISTS `%s` (
             `order_id` INT UNSIGNED NOT NULL,
-            `familia` VARCHAR(2) NOT NULL,
+            `familia` VARCHAR(10) NOT NULL,
             `fecha_expedicion` DATE NOT NULL,
             `created` DATETIME NOT NULL,
             PRIMARY KEY (`order_id`, `familia`)
@@ -575,6 +639,8 @@ class VerifactuLibraryBridge
         } catch (\Throwable $e) {
             VerifactuLog::add('Error creando tabla ' . $tabla . ': ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
         }
+
+        $this->ensancharFamilia($tabla);
     }
 
     /**
@@ -690,9 +756,16 @@ class VerifactuLibraryBridge
         return $max;
     }
 
-    private function aplicarNumeracionPropia($order, string $familia, string $fechaOperacion): string
+    /**
+     * $clave: clave de la asignación cuando no es la familia (RD1, RD2... para
+     * cada rectificación por diferencias de un pedido, que numeran en la serie
+     * R). $actualizarPedido: false para esas rectificaciones, que no son la
+     * factura del pedido y no deben cambiar su order_invoice_number.
+     */
+    private function aplicarNumeracionPropia($order, string $familia, string $fechaOperacion, ?string $clave = null, bool $actualizarPedido = true): string
     {
         $original = (string) ($order->order_invoice_number ?? $order->order_number);
+        $clave = $clave ?? $familia;
 
         if ((string) $this->params->get('numeracion_propia_activa', '0') !== '1') {
             return $original;
@@ -706,7 +779,7 @@ class VerifactuLibraryBridge
             ->select($this->db->quoteName('numero'))
             ->from('#__hikashop_verifactu_numeracion_asignada')
             ->where('order_id = ' . $orderId)
-            ->where('familia = ' . $this->db->quote($familia));
+            ->where('familia = ' . $this->db->quote($clave));
         $this->db->setQuery($query);
         $existente = $this->db->loadResult();
 
@@ -808,6 +881,15 @@ class VerifactuLibraryBridge
                     . ' LIMIT 1'
                 );
                 $enUso = $this->db->loadResult();
+                if ($enUso === null) {
+                    // las rectificaciones por diferencias solo dejan su número en el registro
+                    $this->db->setQuery(
+                        'SELECT 1 FROM ' . $this->db->quoteName('#__hikashop_verifactu_registro')
+                        . ' WHERE ' . $this->db->quoteName('invoice_number') . ' = ' . $this->db->quote($numero)
+                        . ' LIMIT 1'
+                    );
+                    $enUso = $this->db->loadResult();
+                }
             } while ($enUso !== null && $intentos < 10000);
 
             if ($enUso !== null) {
@@ -823,7 +905,7 @@ class VerifactuLibraryBridge
 
             $asignacion = (object) [
                 'order_id' => $orderId,
-                'familia' => $familia,
+                'familia' => $clave,
                 'numero' => $numero,
                 'numero_original_hikashop' => $original,
                 'created' => date('Y-m-d H:i:s'),
@@ -839,12 +921,14 @@ class VerifactuLibraryBridge
         }
 
         try {
-            $this->db->setQuery(
-                'UPDATE ' . $this->db->quoteName('#__hikashop_order')
-                . ' SET order_invoice_number = ' . $this->db->quote($numero)
-                . ' WHERE order_id = ' . $orderId
-            );
-            $this->db->execute();
+            if ($actualizarPedido) {
+                $this->db->setQuery(
+                    'UPDATE ' . $this->db->quoteName('#__hikashop_order')
+                    . ' SET order_invoice_number = ' . $this->db->quote($numero)
+                    . ' WHERE order_id = ' . $orderId
+                );
+                $this->db->execute();
+            }
         } catch (\Throwable $e) {
             VerifactuLog::add('ERROR actualizando order_invoice_number del pedido ' . $orderId . ' a ' . $numero . ': ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
         }
@@ -2233,7 +2317,7 @@ class VerifactuLibraryBridge
             $tipoIva = null;
             $tipoRecargo = null;
             $llevaRecargo = false;
-            $baseOriginal = (float) $facturaOriginal->base_imponible;
+            $baseOriginal = (float) $facturaOriginal->base_acumulada;
             $diferenciaBase = round($nuevaBase - $baseOriginal, 2);
             $diferenciaIva = 0.0;
             $diferenciaRecargo = 0.0;
@@ -2264,9 +2348,10 @@ class VerifactuLibraryBridge
                 ];
             }
 
-            $baseOriginal = (float) $facturaOriginal->base_imponible;
-            $cuotaIvaOriginal = (float) $facturaOriginal->cuota_iva;
-            $recargoOriginal = $facturaOriginal->recargo_equivalencia !== null ? (float) $facturaOriginal->recargo_equivalencia : 0.0;
+            // lo ya declarado: la factura más las rectificaciones por diferencias aceptadas
+            $baseOriginal = (float) $facturaOriginal->base_acumulada;
+            $cuotaIvaOriginal = (float) $facturaOriginal->cuota_acumulada;
+            $recargoOriginal = $facturaOriginal->recargo_acumulado !== null ? (float) $facturaOriginal->recargo_acumulado : 0.0;
 
             $diferenciaBase = round($nuevaBase - $baseOriginal, 2);
             $nuevaCuotaIva = round($nuevaBase * $tipoIva / 100, 2);
@@ -2292,7 +2377,7 @@ class VerifactuLibraryBridge
             return [
                 'estado' => 'error_rectificacion_sin_diferencia',
                 'csv' => null,
-                'errores' => ['La Nueva base imponible (y, en su caso, el nuevo tipo) coincide con la factura original: no hay ninguna diferencia que rectificar.'],
+                'errores' => ['La Nueva base imponible (y, en su caso, el nuevo tipo) coincide con lo ya declarado para la factura ' . $facturaOriginal->invoice_number . ' (la factura más sus rectificaciones por diferencias aceptadas): no hay ninguna diferencia que rectificar.'],
                 'qr' => null,
             ];
         }
@@ -2304,11 +2389,27 @@ class VerifactuLibraryBridge
         $nifCliente = $limpiarNif($billing->address_vat ?? '');
         $tieneNifCliente = !empty($billing) && !empty($nifCliente);
 
+        // R5 si la factura rectificada es simplificada (F2, o R5), R1 si no;
+        // sin tipo guardado (registros antiguos), según el NIF como antes.
+        $tipoRectificada = (string) ($facturaOriginal->tipo_factura ?? '');
+        $esR5 = $tipoRectificada !== ''
+            ? in_array($tipoRectificada, ['F2', 'R5'], true)
+            : !$tieneNifCliente;
+
+        if (!$esR5 && !$tieneNifCliente) {
+            return [
+                'estado' => 'error_rectificacion_sin_nif',
+                'csv' => null,
+                'errores' => ['La factura ' . $facturaOriginal->invoice_number . ' es una factura completa (' . $tipoRectificada . '), así que su rectificación es una R1, que exige identificar al destinatario, y el pedido ya no tiene NIF/identificación fiscal en la dirección de facturación. Vuelve a indicarlo y reenvía.'],
+                'qr' => null,
+            ];
+        }
+
         // v0.34.58: sin NIF la rectificativa saldría como R5 (simplificada),
         // y una factura simplificada debe llevar IVA (tipo impositivo
         // aplicado) -- no puede rectificar una operación exenta. Se rechaza
         // ANTES de asignar número, para no consumir uno de la serie R.
-        if ($esExenta && !$tieneNifCliente) {
+        if ($esExenta && $esR5) {
             return [
                 'estado' => 'error_simplificada_exenta',
                 'csv' => null,
@@ -2317,15 +2418,31 @@ class VerifactuLibraryBridge
             ];
         }
 
-        $familia = 'R';
-        $fechaOperacion = $this->obtenerFechaExpedicionCongelada($orderId, $familia);
-        $order->order_invoice_number = $this->aplicarNumeracionPropia($order, $familia, $fechaOperacion);
+        // Cada rectificación por diferencias es una factura propia, con su
+        // número y su fecha (clave RD1, RD2...), y no cambia el número de la
+        // factura del pedido. Un reintento de la misma R1 (aún no aceptada)
+        // reutiliza su clave, y con ella su número y su fecha.
+        $clave = 'RD' . ($facturaOriginal->rectificaciones + 1);
+        $fechaOperacion = $this->obtenerFechaExpedicionCongelada($orderId, $clave);
+        if ((string) $this->params->get('numeracion_propia_activa', '0') === '1') {
+            $numeroR = $this->aplicarNumeracionPropia($order, 'R', $fechaOperacion, $clave, false);
+            if ($numeroR === (string) ($order->order_invoice_number ?? $order->order_number)) {
+                return [
+                    'estado' => 'error_numeracion',
+                    'csv' => null,
+                    'errores' => ['No se pudo asignar un número de la serie R a la rectificación por diferencias (ver el log de VeriFactu). No se envía nada a la AEAT.'],
+                    'qr' => null,
+                ];
+            }
+        } else {
+            $numeroR = $facturaOriginal->invoice_number . '-R' . ($facturaOriginal->rectificaciones + 1);
+        }
 
         $invoice = new InvoiceSubmission();
 
         $invoiceId = new InvoiceId();
         $invoiceId->issuerNif = $nifEmisor;
-        $invoiceId->seriesNumber = $order->order_invoice_number ?? $order->order_number;
+        $invoiceId->seriesNumber = $numeroR;
         $invoiceId->issueDate = $fechaOperacion;
         $invoice->setInvoiceId($invoiceId);
 
@@ -2344,10 +2461,8 @@ class VerifactuLibraryBridge
         }
 
         $invoice->issuerName = $this->params->get('nombre_emisor');
-        // R1 con destinatario identificado; R5 (rectificativa de una
-        // simplificada) cuando el pedido no tiene NIF -- mismo criterio que
-        // ya usa registrarFactura() para el resto de rectificativas.
-        $invoice->invoiceType = $tieneNifCliente ? InvoiceType::RECTIFICATION_1 : InvoiceType::RECTIFICATION_SIMPLIFIED;
+        // R5 (rectificativa de una simplificada) o R1, según $esR5 más arriba.
+        $invoice->invoiceType = $esR5 ? InvoiceType::RECTIFICATION_SIMPLIFIED : InvoiceType::RECTIFICATION_1;
         $invoice->rectificationType = RectificationType::INCREMENTAL;
         $invoice->addRectifiedInvoice($nifEmisor, (string) $facturaOriginal->invoice_number, substr((string) $facturaOriginal->invoice_date, 0, 10));
 
@@ -2389,7 +2504,7 @@ class VerifactuLibraryBridge
         $invoice->setBreakdown($breakdown);
         $invoice->taxAmount = $diferenciaIva;
 
-        if ($tieneNifCliente) {
+        if (!$esR5) {
             $resultadoDestinatario = $this->construirDestinatario($order, $billing, $nifCliente);
             if (isset($resultadoDestinatario['error'])) {
                 return $this->abortarConNumeroAsignado($order, $invoice, '', $facturaOriginal, $resultadoDestinatario['estado'], $resultadoDestinatario['error']);
@@ -2446,7 +2561,7 @@ class VerifactuLibraryBridge
                 $response = Verifactu::registerInvoice($invoice);
                 $xmlEnviado = Verifactu::getLastRequestXml();
             } catch (\Throwable $e) {
-                VerifactuLog::add('ERROR técnico en rectificación por diferencias pedido ' . $orderId . ' (' . ($order->order_invoice_number ?? '') . '): ' . $e->getMessage(), \Joomla\CMS\Log\Log::ERROR);
+                VerifactuLog::add('ERROR técnico en rectificación por diferencias pedido ' . $orderId . ' (' . $numeroR . '): ' . $e->getMessage(), \Joomla\CMS\Log\Log::ERROR);
 
                 return $this->abortarConNumeroAsignado($order, $invoice, '', $facturaOriginal, 'error_tecnico', [
                     'estado' => 'error_tecnico',
@@ -2460,12 +2575,8 @@ class VerifactuLibraryBridge
             $qrImage = null;
 
             // El desglose que se guarda aquí es el de ESTA rectificación
-            // (la diferencia), no el de la factura resultante acumulada --
-            // consistente con "el registro que se envía a la AEAT lleva los
-            // importes de la diferencia". Si sobre esta misma R1 se
-            // encadenara otra rectificación por diferencias, tomaría como
-            // "original" esta R1 y su base/tipo, que es lo correcto para
-            // seguir sumando diferencias sucesivas.
+            // (la diferencia): obtenerFacturaParaRectificarPorDiferencias()
+            // lo suma al de la factura para la siguiente.
             $this->guardarRegistro(
                 $order,
                 $invoice,
@@ -2487,6 +2598,7 @@ class VerifactuLibraryBridge
             );
 
             if (in_array($estado, ['aceptado', 'aceptado_con_errores'], true)) {
+                $this->limpiarCamposRectificacion($orderId);
                 $invoice->csv = $response->csv;
 
                 try {
@@ -2524,6 +2636,34 @@ class VerifactuLibraryBridge
             ];
         } finally {
             $this->liberarLockSecuencia($nifEmisor);
+        }
+    }
+
+    /**
+     * Una vez aceptada la rectificación por diferencias, el pedido vuelve a
+     * "Rectificar por diferencias" = No y sin importes, para que el siguiente
+     * guardado no la repita.
+     */
+    private function limpiarCamposRectificacion(int $orderId): void
+    {
+        $campo = function (string $paramKey, string $defecto): string {
+            $nombre = trim((string) $this->params->get($paramKey, $defecto));
+
+            return $nombre !== '' ? $nombre : $defecto;
+        };
+
+        try {
+            $query = $this->db->getQuery(true)
+                ->update('#__hikashop_order')
+                ->set($this->db->quoteName($campo('campo_rectificar_diferencias', 'verifactu_rectificar_diferencias')) . ' = ' . $this->db->quote('No'))
+                ->set($this->db->quoteName($campo('campo_nueva_base_imponible', 'verifactu_nueva_base_imponible')) . ' = NULL')
+                ->set($this->db->quoteName($campo('campo_nuevo_tipo_iva', 'verifactu_nuevo_tipo_iva')) . ' = NULL')
+                ->set($this->db->quoteName($campo('campo_nuevo_tipo_recargo', 'verifactu_nuevo_tipo_recargo')) . ' = NULL')
+                ->where('order_id = ' . $orderId);
+            $this->db->setQuery($query);
+            $this->db->execute();
+        } catch (\Throwable $e) {
+            VerifactuLog::add('No se pudieron limpiar los campos de rectificación del pedido ' . $orderId . ': ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
         }
     }
 

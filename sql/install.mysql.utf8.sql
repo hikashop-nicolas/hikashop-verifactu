@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS `#__hikashop_verifactu_contador` (
 CREATE TABLE IF NOT EXISTS `#__hikashop_verifactu_numeracion_asignada` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `order_id` INT UNSIGNED NOT NULL,
-    `familia` VARCHAR(2) NOT NULL,
+    `familia` VARCHAR(10) NOT NULL,
     `numero` VARCHAR(60) NOT NULL,
     `numero_original_hikashop` VARCHAR(60) NULL,
     `created` DATETIME NOT NULL,

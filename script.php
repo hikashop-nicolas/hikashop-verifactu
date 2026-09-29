@@ -103,7 +103,7 @@ class PlgHikashopVerifactuInstallerScript
         'hikashop_verifactu_numeracion_asignada' => "CREATE TABLE IF NOT EXISTS `%s` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `order_id` INT UNSIGNED NOT NULL,
-            `familia` VARCHAR(2) NOT NULL,
+            `familia` VARCHAR(10) NOT NULL,
             `numero` VARCHAR(60) NOT NULL,
             `numero_original_hikashop` VARCHAR(60) NULL,
             `created` DATETIME NOT NULL,
@@ -116,7 +116,7 @@ class PlgHikashopVerifactuInstallerScript
         // la fecha de "hoy" en vez de la fecha real de expedición.
         'hikashop_verifactu_fecha_expedicion' => "CREATE TABLE IF NOT EXISTS `%s` (
             `order_id` INT UNSIGNED NOT NULL,
-            `familia` VARCHAR(2) NOT NULL,
+            `familia` VARCHAR(10) NOT NULL,
             `fecha_expedicion` DATE NOT NULL,
             `created` DATETIME NOT NULL,
             PRIMARY KEY (`order_id`, `familia`)
@@ -182,8 +182,38 @@ class PlgHikashopVerifactuInstallerScript
         }
 
         $this->migrarSustituyeSimplificada($db);
+        $this->migrarFamiliaAncha($db);
 
         return true;
+    }
+
+    /**
+     * Cada rectificación por diferencias de un pedido tiene su propio número y
+     * su propia fecha, guardados con la clave RD1, RD2... en vez de R: la
+     * columna familia pasa de VARCHAR(2) a VARCHAR(10). Idempotente.
+     */
+    private function migrarFamiliaAncha($db): void
+    {
+        foreach (['hikashop_verifactu_numeracion_asignada', 'hikashop_verifactu_fecha_expedicion'] as $suffix) {
+            $table = $db->getPrefix() . $suffix;
+            try {
+                $db->setQuery(
+                    'SELECT CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE()'
+                    . ' AND TABLE_NAME = ' . $db->quote($table) . ' AND COLUMN_NAME = ' . $db->quote('familia')
+                );
+                $largo = $db->loadResult();
+                if ($largo === null || (int) $largo >= 10) {
+                    continue;
+                }
+                $db->setQuery('ALTER TABLE ' . $db->quoteName($table) . ' MODIFY COLUMN `familia` VARCHAR(10) NOT NULL');
+                $db->execute();
+            } catch (\Throwable $e) {
+                \Joomla\CMS\Factory::getApplication()->enqueueMessage(
+                    'VeriFactu: no se pudo ampliar la columna familia de ' . $table . ' (' . $e->getMessage() . ')',
+                    'warning'
+                );
+            }
+        }
     }
 
     /**

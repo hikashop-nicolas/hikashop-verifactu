@@ -27,7 +27,8 @@ if (!$hasQr && !empty($order->order_id)) {
             ->from('#__hikashop_verifactu_registro')
             ->where('order_id = ' . (int) $order->order_id)
             ->where('estado_envio IN (' . $db->quote('aceptado') . ',' . $db->quote('aceptado_con_errores') . ')')
-            ->order('id DESC')
+            // el QR de la factura del pedido, no el de una rectificación por diferencias posterior
+            ->order('(invoice_number = ' . $db->quote((string) ($order->order_invoice_number ?? '')) . ') DESC, id DESC')
             ->setLimit(1);
         $db->setQuery($query);
         $registro = $db->loadObject();
