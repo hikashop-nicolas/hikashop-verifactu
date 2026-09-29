@@ -1877,7 +1877,7 @@ class VerifactuLibraryBridge
         // 'rechazado'): un error técnico local o de red, donde la AEAT nunca
         // llegó a responder, no es un "rechazo previo por la AEAT" en el
         // sentido de este campo.
-        if ($this->huboRechazoPrevioAeat((int) $order->order_id, 'alta')) {
+        if ($this->huboRechazoPrevioAeat((int) $order->order_id, 'alta', (string) $invoice->getInvoiceId()->seriesNumber)) {
             $invoice->subsanacion = YesNoType::YES;
             $invoice->previousRejection = YesNoType::YES;
         }
@@ -2220,7 +2220,7 @@ class VerifactuLibraryBridge
             // cuando corresponde, cosa que antes no se hacía nunca. El XSD de
             // anulación no lleva Subsanacion (RechazoPrevioAnulacionType es un
             // campo independiente, sin la validación cruzada 1153/1161 de altas).
-            if ($this->huboRechazoPrevioAeat((int) $order->order_id, 'anulacion')) {
+            if ($this->huboRechazoPrevioAeat((int) $order->order_id, 'anulacion', (string) $facturaAAnular->invoice_number)) {
                 $cancellation->previousRejection = YesNoType::YES;
             }
 
@@ -2595,7 +2595,7 @@ class VerifactuLibraryBridge
             }
             $invoice->setChaining($chaining);
 
-            if ($this->huboRechazoPrevioAeat($orderId, 'alta')) {
+            if ($this->huboRechazoPrevioAeat($orderId, 'alta', $numeroR)) {
                 $invoice->subsanacion = YesNoType::YES;
                 $invoice->previousRejection = YesNoType::YES;
             }
@@ -3158,13 +3158,12 @@ class VerifactuLibraryBridge
      * explícitamente? Ver el comentario junto a su única llamada, en
      * registrarFactura(), para el porqué (Subsanacion/RechazoPrevio).
      *
-     * Deliberadamente NO se filtra por familia/tipo_factura (F1/F2/F3/R):
-     * un pedido normalmente solo tiene una familia de alta activa a la vez,
-     * y afinar más no compensa la complejidad -- en el peor caso, marcar
-     * Subsanacion/RechazoPrevio de más ante un cambio de familia entre
-     * intentos es una imprecisión menor, no un envío inválido.
+     * Se filtra por el número de la factura que se envía: un pedido puede
+     * tener varias (F2 y F3, la factura y sus rectificaciones por
+     * diferencias), y el rechazo de una no convierte el envío de otra en una
+     * subsanación.
      */
-    private function huboRechazoPrevioAeat(int $orderId, string $tipoRegistro): bool
+    private function huboRechazoPrevioAeat(int $orderId, string $tipoRegistro, string $invoiceNumber = ''): bool
     {
         $query = $this->db->getQuery(true)
             ->select('id')
@@ -3173,6 +3172,9 @@ class VerifactuLibraryBridge
             ->where('tipo_registro = ' . $this->db->quote($tipoRegistro))
             ->where('estado_envio = ' . $this->db->quote('rechazado'))
             ->setLimit(1);
+        if ($invoiceNumber !== '') {
+            $query->where('invoice_number = ' . $this->db->quote($invoiceNumber));
+        }
 
         $this->db->setQuery($query);
 
