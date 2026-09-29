@@ -2506,6 +2506,8 @@ JS;
                 'order_invoice_number',
                 'order_invoice_id',
                 'order_number',
+                'order_user_id',
+                'order_currency_id',
                 'verifactu_tipo_abono',
                 'verifactu_comentario_abono',
                 'verifactu_sustituye_simplificada',

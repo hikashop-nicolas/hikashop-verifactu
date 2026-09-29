@@ -939,39 +939,53 @@ class VerifactuLibraryBridge
     }
 
     /**
-     * Busca la factura HikaShop que probablemente se rectifica.
-     * El patrón habitual de este proyecto es que el abono sea la factura
-     * inmediatamente posterior a la original (número + 1). No se fuerza la
-     * relación si no puede determinarse con seguridad.
+     * La factura que rectifica un pedido de abono, para FacturasRectificadas.
+     * Primero la indicada en "Comentario del abono" (el placeholder del campo
+     * ya lo pide): un número que el registro tenga como alta aceptada de otro
+     * pedido. Si no, la factura inmediatamente anterior (número - 1), pero solo
+     * si es del mismo cliente: con la numeración nativa de HikaShop suele ser la
+     * de otro cliente, y declarar que se rectifica una factura ajena es peor que
+     * no informar ninguna.
      */
     private function obtenerFacturaRectificada($order, string $invoiceNumber): ?object
     {
-        if (!preg_match('/^(.*?)(\d+)$/', trim($invoiceNumber), $m)) {
-            return null;
-        }
+        $original = $this->buscarFacturaEnComentario($order);
 
-        $prefijo = $m[1];
-        $numero = (int) $m[2];
-        if ($numero <= 0) {
-            return null;
-        }
+        if ($original === null) {
+            if (!preg_match('/^(.*?)(\d+)$/', trim($invoiceNumber), $m)) {
+                return null;
+            }
 
-        $numeroAnterior = $numero - 1;
-        $numeroAnteriorFormateado = str_pad((string) $numeroAnterior, strlen($m[2]), '0', STR_PAD_LEFT);
-        $candidato = $prefijo . $numeroAnteriorFormateado;
+            $prefijo = $m[1];
+            $numero = (int) $m[2];
+            if ($numero <= 0) {
+                return null;
+            }
 
-        $query = $this->db->getQuery(true)
-            ->select('order_id, order_invoice_number, order_full_price, order_created')
-            ->from('#__hikashop_order')
-            ->where('order_invoice_number = ' . $this->db->quote($candidato))
-            ->where('order_id <> ' . (int) $order->order_id)
-            ->setLimit(1);
+            $numeroAnterior = $numero - 1;
+            $numeroAnteriorFormateado = str_pad((string) $numeroAnterior, strlen($m[2]), '0', STR_PAD_LEFT);
+            $candidato = $prefijo . $numeroAnteriorFormateado;
 
-        $this->db->setQuery($query);
-        $original = $this->db->loadObject();
+            $query = $this->db->getQuery(true)
+                ->select('order_id, order_invoice_number, order_full_price, order_created, order_user_id')
+                ->from('#__hikashop_order')
+                ->where('order_invoice_number = ' . $this->db->quote($candidato))
+                ->where('order_id <> ' . (int) $order->order_id)
+                ->setLimit(1);
 
-        if (!$original || (float) $original->order_full_price <= 0) {
-            return null;
+            $this->db->setQuery($query);
+            $original = $this->db->loadObject();
+
+            if (!$original || (float) $original->order_full_price <= 0) {
+                return null;
+            }
+
+            $usuario = (int) ($order->order_user_id ?? 0);
+            if ($usuario === 0 || (int) $original->order_user_id !== $usuario) {
+                VerifactuLog::add('Pedido ' . (int) $order->order_id . ': la factura anterior ' . $candidato . ' es de otro cliente, no se informa como factura rectificada. Indica el número de la factura original en "Comentario del abono".', \Joomla\CMS\Log\Log::WARNING);
+
+                return null;
+            }
         }
 
         // v0.34.21: la fecha que hay que informar a la AEAT en
@@ -1000,6 +1014,47 @@ class VerifactuLibraryBridge
         $original->fecha_expedicion_real = $fechaReal !== null
             ? substr((string) $fechaReal, 0, 10)
             : date('Y-m-d', (int) $original->order_created);
+
+        return $original;
+    }
+
+    /**
+     * Un número de factura escrito en "Comentario del abono" que el registro
+     * tenga como alta aceptada de otro pedido, o null.
+     */
+    private function buscarFacturaEnComentario($order): ?object
+    {
+        $comentario = (string) ($order->verifactu_comentario_abono ?? '');
+        if (!preg_match_all('#[A-Za-z0-9][A-Za-z0-9/_.\-]*[A-Za-z0-9]#', $comentario, $m) || empty($m[0])) {
+            return null;
+        }
+
+        $candidatos = array_slice(array_unique($m[0]), 0, 20);
+        $query = $this->db->getQuery(true)
+            ->select('DISTINCT r.invoice_number, r.order_id')
+            ->from('#__hikashop_verifactu_registro AS r')
+            ->where('r.invoice_number IN (' . implode(',', array_map([$this->db, 'quote'], $candidatos)) . ')')
+            ->where('r.order_id <> ' . (int) $order->order_id)
+            ->where('r.tipo_registro = ' . $this->db->quote('alta'))
+            ->where('r.estado_envio IN (' . $this->db->quote('aceptado') . ',' . $this->db->quote('aceptado_con_errores') . ')');
+        $this->db->setQuery($query);
+        $filas = $this->db->loadObjectList() ?: [];
+        if (count($filas) !== 1) {
+            return null;
+        }
+
+        $this->db->setQuery(
+            $this->db->getQuery(true)
+                ->select('order_id, order_invoice_number, order_full_price, order_created, order_user_id')
+                ->from('#__hikashop_order')
+                ->where('order_id = ' . (int) $filas[0]->order_id)
+        );
+        $original = $this->db->loadObject();
+        if (!$original) {
+            return null;
+        }
+        // el número registrado en la AEAT, aunque el pedido tenga otro
+        $original->order_invoice_number = $filas[0]->invoice_number;
 
         return $original;
     }
