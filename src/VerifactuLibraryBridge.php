@@ -1875,12 +1875,13 @@ class VerifactuLibraryBridge
         if (!$this->adquirirLockSecuencia($nifEmisor)) {
             VerifactuLog::add('ERROR: no se pudo adquirir el lock de secuencia del emisor ' . $nifEmisor . ' (pedido ' . $order->order_id . '); otra factura del mismo emisor se está generando en este momento.', \Joomla\CMS\Log\Log::ERROR);
 
-            return [
+            // el número ya está asignado: que quede en el registro, como los demás errores
+            return $this->abortarConNumeroAsignado($order, $invoice, $tipoAbono, $facturaRectificada, 'error_concurrencia', [
                 'estado' => 'error_concurrencia',
                 'csv' => null,
                 'errores' => ['No se pudo generar la factura porque otra factura del mismo emisor se está procesando en este momento. Vuelve a intentarlo en unos segundos.'],
                 'qr' => null,
-            ];
+            ]);
         }
 
         try {
@@ -2619,12 +2620,12 @@ class VerifactuLibraryBridge
         if (!$this->adquirirLockSecuencia($nifEmisor)) {
             VerifactuLog::add('ERROR: no se pudo adquirir el lock de secuencia del emisor ' . $nifEmisor . ' (rectificación por diferencias pedido ' . $orderId . '); otra factura del mismo emisor se está generando en este momento.', \Joomla\CMS\Log\Log::ERROR);
 
-            return [
+            return $this->abortarConNumeroAsignado($order, $invoice, '', $facturaOriginal, 'error_concurrencia', [
                 'estado' => 'error_concurrencia',
                 'csv' => null,
                 'errores' => ['No se pudo generar la rectificación porque otra factura del mismo emisor se está procesando en este momento. Vuelve a intentarlo en unos segundos.'],
                 'qr' => null,
-            ];
+            ]);
         }
 
         try {
