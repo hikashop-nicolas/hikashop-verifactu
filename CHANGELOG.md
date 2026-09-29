@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.34.66
+
+Correcciones propuestas por HikaShop sobre la 0.34.65.
+
+Rectificación por diferencias:
+- Ya no se repite en cada guardado del pedido. La diferencia se calcula
+  frente a la factura original más las rectificaciones por diferencias ya
+  aceptadas, y una vez aceptada el pedido vuelve a "Rectificar por
+  diferencias" = No con los tres importes vacíos.
+- Cada rectificación tiene su propio número y su propia fecha y no cambia el
+  número de la factura del pedido: siguiente número de la serie R con la
+  numeración propia, o el número de la factura original seguido de -R1,
+  -R2... sin ella. Antes tomaba el mismo número que la factura original, y
+  su QR sustituía al de esa factura.
+- R5 si la factura rectificada es simplificada (F2), R1 en los demás casos,
+  en vez de decidirlo según el NIF que tenga el pedido en ese momento.
+- La factura del pedido muestra el QR de la propia factura, no el de una
+  rectificación posterior.
+- "Nueva base imponible" en blanco se queda vacía al guardar el popup
+  "Información adicional" del pedido (antes se guardaba 0,00 y se enviaba
+  una R1 por el total de la base en negativo).
+
+Otras correcciones:
+- Pedidos de abono: la factura rectificada se toma del "Comentario del
+  abono" si contiene un número de factura del registro; la factura anterior
+  (número - 1) solo se usa si es del mismo cliente.
+- Subsanacion/RechazoPrevio solo se marcan al reenviar la misma factura que
+  la AEAT rechazó, no cualquier factura posterior del pedido.
+- El límite de la factura simplificada se compara en euros aunque el pedido
+  esté en otra moneda.
+- Los errores y rechazos se muestran al administrador que guarda el pedido,
+  no solo en el log.
+- Si el bloqueo falla después de asignar el número, queda una fila en el
+  registro como en los demás errores.
+- Guardar los datos de la Declaración Responsable exige el token del
+  formulario.
+- La instalación se detiene con un mensaje en PHP anterior a 8.1.
+- La comprobación de caducidad del certificado se hace en la administración,
+  una vez al día, y envía solo el aviso más cercano.
+- Las pantallas de los campos personalizados solo se activan al actualizar
+  desde una versión anterior a la 0.34.54, para respetar las que haya
+  elegido el comerciante.
+- El filtro de estados del Registro incluye los cuatro estados que faltaban.
+
 ## 0.34.65
 
 Manual (`Manual_de_instalacion_y_configuracion.txt`):

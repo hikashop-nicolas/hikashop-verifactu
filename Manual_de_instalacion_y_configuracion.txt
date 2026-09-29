@@ -1,10 +1,10 @@
 Manual de instalación y configuración
 
-PLG_HIKASHOP_VERIFACTU v0.34.65
+PLG_HIKASHOP_VERIFACTU v0.34.66
 
 1. Introducción
 
-Este manual explica la instalación y configuración del plugin PLG_HIKASHOP_VERIFACTU v0.34.65 para
+Este manual explica la instalación y configuración del plugin PLG_HIKASHOP_VERIFACTU v0.34.66 para
 Joomla + HikaShop.
 
 El plugin integra HikaShop con el sistema VERI*FACTU de la Agencia Estatal de Administración
@@ -141,7 +141,7 @@ En el administrador de Joomla:
 
 Extensiones → Gestionar → Instalar
 
-1.  Selecciona el archivo ZIP de PLG_HIKASHOP_VERIFACTU v0.34.65.
+1.  Selecciona el archivo ZIP de PLG_HIKASHOP_VERIFACTU v0.34.66.
 
 2.  Sube el paquete.
 
@@ -150,7 +150,7 @@ Extensiones → Gestionar → Instalar
 No es necesario ejecutar manualmente comandos Composer ni modificar archivos del plugin después de
 la instalación.
 
-Importante: la versión v0.34.65 debe instalarse utilizando el paquete proporcionado. No deben
+Importante: la versión v0.34.66 debe instalarse utilizando el paquete proporcionado. No deben
 aplicarse manualmente los parches de versiones anteriores descritos en manuales antiguos.
 
 5. Configurar el plugin
@@ -221,7 +221,7 @@ por menor a consumidor final (B2C).
 
 6. Información y control de la caducidad del certificado
 
-La versión v0.34.65 incorpora información sobre la fecha de caducidad del certificado digital.
+La versión v0.34.66 incorpora información sobre la fecha de caducidad del certificado digital.
 
 Una vez que el certificado es reconocido correctamente, el plugin puede mostrar su fecha de
 caducidad dentro de la configuración.
@@ -323,6 +323,10 @@ Las opciones son:
 Este campo permite introducir información complementaria sobre la devolución o rectificación.
 
 También puede utilizarse para identificar o describir la factura que se está rectificando.
+
+En un pedido de abono, escriba aquí el número de la factura original: el plugin lo busca en el
+registro y lo informa a la AEAT como factura rectificada. Si no lo encuentra, solo usa la factura
+inmediatamente anterior cuando es del mismo cliente; en caso contrario no informa ninguna.
 
 8.3. Sustituye a factura simplificada (F3)
 
@@ -693,6 +697,17 @@ debe introducirse:
 
 El plugin calcula la diferencia correspondiente.
 
+La diferencia se calcula frente a lo ya declarado: la factura original más las rectificaciones por
+diferencias ya aceptadas sobre ella. Una vez aceptada la rectificación, el pedido vuelve a
+Rectificar por diferencias = No y los tres importes se vacían, de modo que guardar de nuevo el
+pedido no la repite. Para una nueva corrección, vuelva a seleccionar Sí e indique la nueva base
+final.
+
+Cada rectificación por diferencias es una factura propia, con su número y su fecha, y no cambia
+el número de la factura del pedido. Con la numeración propia activada toma el siguiente número de
+la serie R; sin ella, el número de la factura original seguido de -R1, -R2, etc. Es una R5 si la
+factura original es simplificada (F2) y una R1 en los demás casos.
+
 12.1. Facturas exentas: Canarias, Ceuta, Melilla y fuera de la Unión Europea
 
 Los pedidos cuyo destino es Canarias, Ceuta o Melilla, o un país fuera de la Unión Europea, se
@@ -887,7 +902,7 @@ El registro permite consultar, según corresponda:
 
 18. Descarga del registro de facturación
 
-La versión v0.34.65 incorpora una opción de descarga del registro.
+La versión v0.34.66 incorpora una opción de descarga del registro.
 
 Esta función permite obtener el registro asociado al proceso de facturación desde el propio sistema.
 
@@ -949,7 +964,7 @@ El administrador debe renovar el certificado antes de su fecha de caducidad.
 
 21. Funciones NO contempladas en el plugin
 
-La v0.34.65 debe considerarse un sistema específico para el flujo VERI*FACTU implementado en
+La v0.34.66 debe considerarse un sistema específico para el flujo VERI*FACTU implementado en
 HikaShop.
 
 No están contempladas las siguientes funciones:
@@ -1017,7 +1032,7 @@ correspondientes.
 
 21.5. Instalación manual mediante SSH o Composer
 
-La instalación normal de la v0.34.65 no requiere que el usuario:
+La instalación normal de la v0.34.66 no requiere que el usuario:
 
 -   ejecute composer install;
 
@@ -1030,7 +1045,7 @@ La instalación normal de la v0.34.65 no requiere que el usuario:
 -   modifique archivos internos del plugin.
 
 Estas instrucciones pertenecían a procedimientos de versiones anteriores y no forman parte del
-procedimiento normal de instalación de la v0.34.65.
+procedimiento normal de instalación de la v0.34.66.
 
 21.6. Modificación manual de Attach Invoice
 
@@ -1041,11 +1056,11 @@ plugins/hikashop/attachinvoice/attachinvoice/invoice.php
 para instalar el plugin.
 
 Los antiguos manuales incluían un bloque de código para insertar manualmente el QR en esa plantilla.
-Ese procedimiento no debe formar parte del procedimiento de instalación de la v0.34.65.
+Ese procedimiento no debe formar parte del procedimiento de instalación de la v0.34.66.
 
 21.7. Operaciones fiscales no contempladas específicamente
 
-La versión v0.34.65 no contempla específicamente la gestión de las siguientes operaciones fiscales:
+La versión v0.34.66 no contempla específicamente la gestión de las siguientes operaciones fiscales:
 
 -   OSS / IOSS — ventas B2C a consumidores de otros países de la Unión Europea en las que
     corresponda aplicar el IVA del país de destino mediante los regímenes OSS/IOSS.
@@ -1170,7 +1185,7 @@ Mantén una copia de seguridad segura del certificado y conserva la contraseña 
 
 24. Modalidad de funcionamiento
 
-La v0.34.65 está diseñada para trabajar en modalidad:
+La v0.34.66 está diseñada para trabajar en modalidad:
 
 VERI*FACTU
 
