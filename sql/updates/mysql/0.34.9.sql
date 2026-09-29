@@ -1,0 +1,21 @@
+-- v0.34.9: `estado_envio` se creó como ENUM('pendiente','enviado','aceptado',
+-- 'aceptado_con_errores','rechazado','error') en la instalación original,
+-- pero el plugin lleva varias versiones guardando otros valores que NUNCA
+-- estuvieron en esa lista: 'error_tecnico', 'error_validacion',
+-- 'error_desglose_vacio', 'error_sustitucion_sin_nif',
+-- 'error_aviso_legal_no_aceptado', etc. (ver VerifactuLibraryBridge.php).
+--
+-- Con el servidor en modo SQL estricto (el habitual desde MySQL 5.7 /
+-- MariaDB 10.2), cada guardarRegistro() con uno de esos estados fallaba
+-- directamente. En modo no estricto, en cambio, MySQL/MariaDB no da error:
+-- guarda una cadena vacía '' en su lugar -- así que la fila SÍ quedaba
+-- guardada, pero con el estado real perdido/en blanco. Esto es
+-- especialmente grave de cara a la exportación/consulta de registros que
+-- exige el RD 1007/2023 (conservación, legibilidad): un registro con el
+-- estado real silenciosamente descartado no es un registro legible.
+--
+-- Se amplía a VARCHAR(60), que admite cualquier valor que el código
+-- utilice ahora o en el futuro sin depender de mantener sincronizada una
+-- lista fija en dos sitios (el ENUM de la base de datos y el código PHP).
+ALTER TABLE `#__hikashop_verifactu_registro`
+    MODIFY COLUMN `estado_envio` VARCHAR(60) NOT NULL DEFAULT 'pendiente';

@@ -1,0 +1,1268 @@
+Manual de instalación y configuración
+
+PLG_HIKASHOP_VERIFACTU v0.34.65
+
+1. Introducción
+
+Este manual explica la instalación y configuración del plugin PLG_HIKASHOP_VERIFACTU v0.34.65 para
+Joomla + HikaShop.
+
+El plugin integra HikaShop con el sistema VERI*FACTU de la Agencia Estatal de Administración
+Tributaria (AEAT), permitiendo:
+
+-   Generar los registros de facturación.
+
+-   Remitir los registros a la AEAT.
+
+-   Recibir y almacenar la respuesta de la AEAT.
+
+-   Registrar el resultado de cada envío.
+
+-   Generar la información necesaria para el código QR VERI*FACTU.
+
+-   Gestionar facturas rectificativas mediante los tipos de abono disponibles.
+
+-   Gestionar determinados registros de anulación.
+
+-   Descargar el registro de facturación asociado.
+
+-   Consultar la información del envío y de la respuesta de la AEAT.
+
+-   Controlar la fecha de caducidad del certificado digital.
+
+-   Avisar por correo electrónico al usuario de la proximidad de la caducidad del certificado.
+
+La modalidad implementada por esta versión es VERI*FACTU con remisión de los registros de
+facturación a la AEAT.
+
+La AEAT describe VERI*FACTU como la modalidad en la que los registros de facturación se remiten en
+línea a la Agencia Tributaria.
+
+Importante: realiza una copia de seguridad de la web y de la base de datos antes de instalar o
+actualizar el plugin.
+
+2. Requisitos del sistema
+
+El entorno de referencia utilizado para el desarrollo y las pruebas es:
+
+  ---------------------------------------------------------------------------------------------------
+  Componente                      Versión / requisito
+  ------------------------------- -------------------------------------------------------------------
+  Joomla                          4.4.14 — probado
+
+  HikaShop                        6.5.0 — probado
+
+  PHP                             8.3.33 — probado
+
+  Certificado digital             .pfx / .p12
+
+  Conexión a Internet             Necesaria para la comunicación con la AEAT
+
+  Modalidad                       VERI*FACTU
+  ---------------------------------------------------------------------------------------------------
+
+La compatibilidad con otras versiones de Joomla, HikaShop o PHP debe comprobarse específicamente
+antes de actualizar un sistema de producción.
+
+3. Preparar el certificado digital
+
+3.1. Crear la carpeta cert
+
+El certificado digital debe almacenarse en una ubicación protegida del servidor.
+
+Crea una carpeta llamada:
+
+cert
+
+La carpeta debe encontrarse fuera de la zona pública del sitio web, por ejemplo, fuera de:
+
+httpdocs
+
+o:
+
+public_html
+
+Ejemplo:
+
+[raíz del alojamiento]
+
+├── cert/
+
+│ └── certificado.pfx
+
+│
+
+└── httpdocs/
+
+Sube dentro de cert el certificado digital:
+
+cert/
+
+└── certificado.pfx
+
+Se recomienda utilizar un nombre sencillo, sin espacios ni caracteres especiales.
+
+3.2. Contraseña del certificado
+
+El certificado debe estar protegido mediante una contraseña fuerte.
+
+Se recomienda una contraseña de al menos 16 caracteres, combinando:
+
+-   letras mayúsculas;
+
+-   letras minúsculas;
+
+-   números;
+
+-   símbolos especiales.
+
+No utilices una contraseña sencilla ni reutilices una contraseña empleada en otros servicios.
+
+La contraseña se introducirá posteriormente en la configuración del plugin.
+
+3.3. Protección del certificado
+
+El certificado contiene información sensible.
+
+Debe mantenerse:
+
+-   fuera de la zona pública del sitio;
+
+-   protegido contra descarga directa mediante URL;
+
+-   accesible únicamente por el servidor cuando el plugin necesite utilizarlo.
+
+No debe publicarse nunca el archivo .pfx o .p12 en una carpeta accesible directamente desde
+Internet.
+
+4. Instalar el plugin
+
+En el administrador de Joomla:
+
+Extensiones → Gestionar → Instalar
+
+1.  Selecciona el archivo ZIP de PLG_HIKASHOP_VERIFACTU v0.34.65.
+
+2.  Sube el paquete.
+
+3.  Espera a que Joomla confirme que la instalación se ha realizado correctamente.
+
+No es necesario ejecutar manualmente comandos Composer ni modificar archivos del plugin después de
+la instalación.
+
+Importante: la versión v0.34.65 debe instalarse utilizando el paquete proporcionado. No deben
+aplicarse manualmente los parches de versiones anteriores descritos en manuales antiguos.
+
+5. Configurar el plugin
+
+Después de instalarlo, accede a:
+
+Extensiones → Plugins
+
+Busca:
+
+PLG_HIKASHOP_VERIFACTU
+
+Abre el plugin.
+
+La configuración contiene los datos necesarios para identificar al emisor y realizar la comunicación
+con la AEAT.
+
+Entre los datos de configuración se encuentran los correspondientes a:
+
+-   NIF del emisor.
+
+-   Nombre o razón social del emisor.
+
+-   Datos fiscales.
+
+-   Entorno de trabajo.
+
+-   Certificado digital.
+
+-   Contraseña del certificado.
+
+-   Ruta del certificado.
+
+-   Opciones de funcionamiento de VERI*FACTU.
+
+-   Estado que dispara el envío, cuando corresponda.
+
+-   Configuración relacionada con el certificado y sus avisos.
+
+Completa todos los campos que solicite la versión instalada.
+
+5.1. Ruta del certificado
+
+La ruta debe apuntar al archivo del certificado almacenado en el servidor.
+
+Debe utilizarse una ruta del sistema de archivos, no una URL pública.
+
+Ejemplo conceptual:
+
+/ruta/servidor/cert/certificado.pfx
+
+No debe utilizarse:
+
+https://midominio.com/cert/certificado.pfx
+
+5.2. Importe máximo de factura simplificada
+En 2026, los límites de la factura simplificada son 3.000 € para B2C y 400 € para B2B, aunque estos
+límites pueden variar en el futuro.
+
+Un valor vacío o no numérico se tratará como 3.000 €.
+
+Si la tienda no vende únicamente a consumidores finales y realiza operaciones B2B, debe establecerse
+400 € como importe máximo.
+
+La configuración del plugin incluye el campo «Importe máximo de factura simplificada (€, IVA
+incluido)». Por defecto, el valor es 3.000 €, correspondiente al límite indicado para las ventas al
+por menor a consumidor final (B2C).
+
+6. Información y control de la caducidad del certificado
+
+La versión v0.34.65 incorpora información sobre la fecha de caducidad del certificado digital.
+
+Una vez que el certificado es reconocido correctamente, el plugin puede mostrar su fecha de
+caducidad dentro de la configuración.
+
+La información permite al administrador conocer con antelación cuándo será necesario renovar el
+certificado.
+
+6.1. Avisos por correo electrónico
+
+El plugin también puede notificar al usuario mediante correo electrónico de la proximidad de la
+fecha de caducidad.
+
+Los avisos se realizan con antelación de:
+
+-   6 meses
+
+-   4 meses
+
+-   2 meses
+
+-   1 mes
+
+El objetivo es evitar que el certificado llegue a caducar y provoque interrupciones en la
+comunicación con la AEAT.
+
+Importante: el aviso de caducidad no sustituye la renovación del certificado. El administrador debe
+disponer de un certificado válido antes de que expire el actual.
+
+7. Habilitar el plugin
+
+Después de completar la configuración:
+
+1.  Vuelve a Extensiones → Plugins.
+
+2.  Localiza PLG_HIKASHOP_VERIFACTU.
+
+3.  Activa el plugin.
+
+4.  Comprueba que aparece como Habilitado.
+
+A partir de ese momento el plugin podrá intervenir en el proceso de facturación de HikaShop.
+
+8. Campos personalizados de HikaShop
+
+La versión actual utiliza nueve campos personalizados de pedido para gestionar los tipos de abono,
+la información complementaria de las rectificaciones, la sustitución de facturas simplificadas y las
+anulaciones.
+
+Los nueve campos utilizados son:
+
+8.1. Tipo de abono
+
+  ---------------------------------------------------------------------------------------------------
+  Configuración                                     Valor
+  ------------------------------------------------- -------------------------------------------------
+  Etiqueta                                          Tipo de abono
+
+  Nombre de columna                                 verifactu_tipo_abono
+
+  Tabla                                             order / Pedido
+
+  Tipo                                              Desplegable sencillo
+  ---------------------------------------------------------------------------------------------------
+
+Las opciones son:
+
+-   Factura
+
+-   Devolución completa
+
+-   Devolución parcial
+
+-   Mercancía obsoleta
+
+-   Descuento posterior
+
+-   Error en IVA
+
+-   Concurso de acreedores
+
+-   Crédito incobrable
+
+-   Otro
+
+8.2. Comentario del abono
+
+  ---------------------------------------------------------------------------------------------------
+  Configuración                              Valor
+  ------------------------------------------ --------------------------------------------------------
+  Etiqueta                                   Comentario del abono
+
+  Nombre de columna                          verifactu_comentario_abono
+
+  Tabla                                      order / Pedido
+
+  Tipo                                       Área de texto
+  ---------------------------------------------------------------------------------------------------
+
+Este campo permite introducir información complementaria sobre la devolución o rectificación.
+
+También puede utilizarse para identificar o describir la factura que se está rectificando.
+
+8.3. Sustituye a factura simplificada (F3)
+
+  ---------------------------------------------------------------------------------------------------
+  Configuración                                     Valor
+  ------------------------------------------------- -------------------------------------------------
+  Etiqueta                                          Sustituye a factura simplificada (F3)
+
+  Nombre de columna                                 verifactu_sustituye_simplificada
+
+  Tabla                                             order / Pedido
+
+  Tipo                                              Desplegable sencillo
+
+  Valor por defecto                                 No
+  ---------------------------------------------------------------------------------------------------
+
+Las opciones son:
+
+-   No
+
+-   Sí
+
+Se selecciona Sí en el pedido cuando la operación tiene que generar una F3 a partir de una factura
+simplificada (F2) aceptada previamente. Antes de seleccionar Sí hay que modificar los datos del
+cliente y guardarlos.
+
+8.4. Anular factura (error de emisión)
+
+  ---------------------------------------------------------------------------------------------------
+  Configuración                                     Valor
+  ------------------------------------------------- -------------------------------------------------
+  Etiqueta                                          Anular factura (error de emisión)
+
+  Nombre de columna                                 verifactu_anular_factura
+
+  Tabla                                             order / Pedido
+
+  Tipo                                              Desplegable sencillo
+
+  Valor por defecto                                 No
+  ---------------------------------------------------------------------------------------------------
+
+Las opciones son:
+
+-   No
+
+-   Sí
+
+Se selecciona Sí en el pedido que contiene una factura emitida por error. El resultado es un
+Registro de Anulación, no una factura rectificativa.
+
+8.5. Motivo de la anulación
+
+  ---------------------------------------------------------------------------------------------------
+  Configuración                                     Valor
+  ------------------------------------------------- -------------------------------------------------
+  Etiqueta                                          Motivo de la anulación
+
+  Nombre de columna                                 verifactu_motivo_anulacion
+
+  Tabla                                             order / Pedido
+
+  Tipo                                              Área de texto
+  ---------------------------------------------------------------------------------------------------
+
+Este campo permite indicar el motivo de la anulación de la factura. Se utiliza junto con el campo
+Anular factura (error de emisión) y su contenido forma parte de la información del Registro de
+Anulación.
+
+8.6. Rectificar por diferencias (R1)
+
+  ---------------------------------------------------------------------------------------------------
+  Configuración                                     Valor
+  ------------------------------------------------- -------------------------------------------------
+  Etiqueta                                          Rectificar por diferencias (R1)
+
+  Nombre de columna                                 verifactu_rectificar_diferencias
+
+  Tabla                                             order / Pedido
+
+  Tipo                                              Desplegable sencillo
+
+  Valor por defecto                                 No
+  ---------------------------------------------------------------------------------------------------
+
+Las opciones son:
+
+-   No
+
+-   Sí
+
+Se selecciona Sí en un pedido ya facturado cuando se quiere rectificar por diferencias sin crear un
+pedido de abono con importe negativo. Funciona junto con el campo Nueva base imponible.
+
+8.7. Nueva base imponible
+
+  ---------------------------------------------------------------------------------------------------
+  Configuración                                     Valor
+  ------------------------------------------------- -------------------------------------------------
+  Etiqueta                                          Nueva base imponible
+
+  Nombre de columna                                 verifactu_nueva_base_imponible
+
+  Tabla                                             order / Pedido
+
+  Tipo                                              Texto
+  ---------------------------------------------------------------------------------------------------
+
+Se utiliza con Rectificar por diferencias (R1) = Sí. Debe contener la base imponible final correcta,
+no la diferencia: el plugin calcula automáticamente la diferencia con la factura original.
+
+8.8. Nuevo tipo de IVA (%)
+
+  ---------------------------------------------------------------------------------------------------
+  Configuración                                     Valor
+  ------------------------------------------------- -------------------------------------------------
+  Etiqueta                                          Nuevo tipo de IVA (%)
+
+  Nombre de columna                                 verifactu_nuevo_tipo_iva
+
+  Tabla                                             order / Pedido
+
+  Tipo                                              Texto
+  ---------------------------------------------------------------------------------------------------
+
+Se utiliza con Rectificar por diferencias (R1) = Sí. Normalmente debe dejarse vacío para conservar
+el tipo de IVA de la factura original. En una factura original exenta (ver el apartado 12.1) debe
+dejarse siempre vacío.
+
+8.9. Nuevo tipo de recargo de equivalencia (%)
+
+  ---------------------------------------------------------------------------------------------------
+  Configuración                                     Valor
+  ------------------------------------------------- -------------------------------------------------
+  Etiqueta                                          Nuevo tipo de recargo de equivalencia (%)
+
+  Nombre de columna                                 verifactu_nuevo_tipo_recargo
+
+  Tabla                                             order / Pedido
+
+  Tipo                                              Texto
+  ---------------------------------------------------------------------------------------------------
+
+Se utiliza con Rectificar por diferencias (R1) = Sí. Normalmente debe dejarse vacío para conservar
+el recargo de equivalencia de la factura original. En una factura original exenta (ver el apartado
+12.1) debe dejarse siempre vacío.
+
+9. Configuración de pantalla de los campos
+
+Comprueba los nueve campos:
+
+1.  Tipo de abono
+
+2.  Comentario del abono
+
+3.  Sustituye a simplificada (F3)
+
+4.  Anular factura (error de emisión)
+
+5.  Motivo de la anulación
+
+6.  Rectificar por diferencias (R1)
+
+7.  Nueva base imponible
+
+8.  Nuevo tipo de IVA (%)
+
+9.  Nuevo tipo de recargo de equivalencia (%)
+
+En Pantalla, deben estar configurados para que puedan utilizarse desde el administrador de HikaShop.
+
+La configuración prevista es:
+
+  ---------------------------------------------------------------------------------------------------
+  Pantalla                                                                             Valor
+  ------------------------------------------------------------------------------------ --------------
+  Formulario del back-end                                                              Sí
+
+  Listado del Back-end                                                                 Sí
+
+  Información adicional del pedido                                                     Sí
+  ---------------------------------------------------------------------------------------------------
+
+Guarda cada campo después de comprobar la configuración.
+
+10. Referencia de abonos y rectificaciones
+
+El usuario selecciona una descripción comprensible en Tipo de abono.
+
+El plugin realiza la correspondencia con los códigos de rectificación utilizados por VERI*FACTU.
+
+El usuario no necesita introducir manualmente los códigos R1, R2, R3 o R4.
+
+Tabla de referencia
+
+  ------------------------------------------------------------------------------------------------------
+  Nº    Campo            Qué hacer                         Crear / modificar       Resultado VeriFactu
+  ----- ---------------- --------------------------------- ----------------------- ---------------------
+  1     Tipo de abono    Seleccionar el motivo             Crear pedido nuevo de   R1 / R2 / R3 / R4 o
+                         correspondiente y utilizar un     abono/rectificación.    R5, según
+                         pedido de abono con importe                               corresponda.
+                         negativo.                                                 
+
+  1.1   Factura          Pedido/factura normal. No es                              Factura normal F1 o
+                         realmente un motivo de abono. No                          F2, según
+                         seleccionar ningún motivo de                              corresponda.
+                         abono. Si aparece como valor, se                          
+                         puede dejar en Factura.                                   
+
+  1.2   Devolución       Se devuelve la totalidad de la    Crear pedido nuevo de   R1 por diferencias
+        completa         operación facturada. Crear/usar   abono/rectificación.    (I) si el
+                         un pedido de abono                                        destinatario tiene
+                         correspondiente, con importe                              NIF.
+                         negativo, y seleccionar                                   
+                         Devolución completa.                                      
+
+  1.3   Devolución       Se devuelve solamente una parte   Crear pedido nuevo de   R1 por diferencias
+        parcial          de los productos/servicios        abono/rectificación.    (I).
+                         facturados. El pedido de abono                            
+                         debe representar económicamente                           
+                         la parte devuelta y tener importe                         
+                         negativo. Seleccionar Devolución                          
+                         parcial.                                                  
+
+  1.4   Mercancía        Se produce una reducción del      Crear pedido nuevo de   R1 por diferencias
+        obsoleta         importe facturado por mercancía   abono/rectificación.    (I).
+                         que posteriormente queda                                  
+                         obsoleta. Utilizar el pedido de                           
+                         abono con el importe que se                               
+                         rectifica y seleccionar esta                              
+                         opción.                                                   
+
+  1.5   Descuento        Después de emitir la factura se   Crear pedido nuevo de   R1 por diferencias
+        posterior        concede un descuento que modifica abono/rectificación.    (I).
+                         el importe de la operación.                               
+                         Utilizar un pedido de abono por                           
+                         el importe del descuento y                                
+                         seleccionar Descuento posterior.                          
+
+  1.6   Error en IVA     La factura original tiene un      Crear pedido nuevo de   R4 por diferencias
+                         tratamiento/tipo de IVA           abono/rectificación.    (I).
+                         incorrecto. Crear el pedido de                            
+                         abono/rectificación                                       
+                         correspondiente, con importe                              
+                         negativo, y seleccionar Error en                          
+                         IVA.                                                      
+
+  1.7   Concurso de      Hay que modificar la base         Crear pedido nuevo de   R2 por diferencias
+        acreedores       imponible por concurso de         abono/rectificación.    (I).
+                         acreedores del cliente. Utilizar                          
+                         el pedido de rectificación/abono                          
+                         y seleccionar Concurso de                                 
+                         acreedores.                                               
+
+  1.8   Crédito          Hay que modificar la base         Crear pedido nuevo de   R3 por diferencias
+        incobrable       imponible debido a un crédito     abono/rectificación.    (I).
+                         incobrable. Utilizar el pedido de                         
+                         rectificación/abono y seleccionar                         
+                         Crédito incobrable.                                       
+
+  1.9   Otro             Cualquier otra causa de           Crear pedido nuevo de   R4 por diferencias
+                         rectificación que no encaje en    abono/rectificación.    (I).
+                         las anteriores. Crear el pedido                           
+                         de abono/rectificación con                                
+                         importe negativo y seleccionar                            
+                         Otro.                                                     
+
+  2     Comentario del   Introducir el comentario o                                Información
+        abono            explicación de la                                         complementaria.
+                         devolución/rectificación.                                 
+
+  3     Sustituye a      Primero modificar datos del       Modificar pedido        F3.
+        simplificada     cliente y guardar después         existente               
+        (F3)             seleccionar Sí en el pedido que                           
+                         tiene la F2 aceptada previamente.                         
+
+  4     Anular factura   Seleccionar Sí en el pedido que   Modificar pedido        Registro de
+                         contiene la factura emitida por   existente               Anulación.
+                         error.                                                    
+
+  5     Motivo de la     Introducir el motivo de la                                Información del
+        anulación        anulación.                                                Registro de
+                                                                                   Anulación.
+
+  6     Rectificar por   Seleccionar Sí para realizar una  Modificar pedido        R1 por diferencias
+        diferencias      rectificación por diferencias.    existente               (I) / R5 si
+                                                                                   corresponde.
+
+  7     Nueva base       Introducir la base imponible                              El plugin calcula
+        imponible        final correcta, no la diferencia.                         automáticamente la
+                                                                                   diferencia.
+
+  8     Nuevo tipo de    Normalmente dejar vacío para                              Se mantiene el IVA
+        IVA (%)          conservar el tipo de IVA                                  original.
+                         original.                                                 
+
+  9     Nuevo tipo de    Normalmente dejar vacío para                              Se mantiene el
+        recargo de       conservar el recargo original.                            recargo original.
+        equivalencia (%)                                                           
+  ------------------------------------------------------------------------------------------------------
+
+Nota: la correspondencia concreta del registro depende de los datos fiscales y de la operación. La
+tabla sirve como referencia de funcionamiento del plugin y no sustituye la comprobación de la
+situación fiscal de cada operación.
+
+11. Crear un abono o factura rectificativa
+
+Para una devolución o rectificación que deba representarse mediante un pedido de abono:
+
+1.  Crear un nuevo pedido de abono/rectificación.
+
+2.  Introducir los importes que correspondan.
+
+3.  Para un abono, utilizar el importe negativo correspondiente.
+
+4.  Seleccionar el Tipo de abono.
+
+5.  Introducir, cuando corresponda, el Comentario del abono.
+
+6.  Procesar la factura.
+
+Ejemplo:
+
+Producto: -100,00 €
+
+IVA 21 %: -21,00 €
+
+Total: -121,00 €
+
+Tipo de abono:
+
+Devolución completa
+
+Comentario:
+
+Abono de factura F-125
+
+El plugin utiliza el tipo de abono seleccionado para determinar el tratamiento correspondiente.
+
+12. Rectificación por diferencias
+
+Cuando se utiliza la opción:
+
+Rectificar por diferencias = Sí
+
+la Nueva base imponible debe contener la base imponible final correcta.
+
+No debe introducirse directamente la diferencia.
+
+Ejemplo:
+
+Factura original:
+
+Base imponible: 1.000 €
+
+Base imponible correcta:
+
+800 €
+
+En:
+
+Nueva base imponible
+
+debe introducirse:
+
+800 €
+
+El plugin calcula la diferencia correspondiente.
+
+12.1. Facturas exentas: Canarias, Ceuta, Melilla y fuera de la Unión Europea
+
+Los pedidos cuyo destino es Canarias, Ceuta o Melilla, o un país fuera de la Unión Europea, se
+facturan sin IVA español como operaciones exentas (exportación). Las entregas a empresas de otros
+países de la Unión Europea con NIF-IVA se facturan también exentas (entrega intracomunitaria). Una
+factura exenta no lleva tipo ni cuota de IVA. Estos casos se manejan así:
+
+A) Cliente CON NIF o identificación fiscal
+
+La rectificación por diferencias (Rectificar por diferencias (R1) = Sí) funciona igual que en una
+factura con IVA, con estas particularidades:
+
+-   En Nueva base imponible se introduce la base imponible final correcta, no la diferencia.
+
+-   El plugin envía solo la diferencia de la base imponible (positiva o negativa), sin tipo ni cuota
+    de IVA.
+
+-   La rectificativa repite el mismo régimen y la misma causa de exención de la factura original.
+
+-   Nuevo tipo de IVA (%) y Nuevo tipo de recargo de equivalencia (%) deben dejarse vacíos. Si se
+    rellenan, el plugin no envía la rectificación y muestra un aviso
+    (error_rectificacion_exenta_con_tipo).
+
+-   Si el motivo de la rectificación es que el tratamiento fiscal era incorrecto (por ejemplo, la
+    factura debía llevar IVA), no basta con una rectificación por diferencias: el plugin no la envía
+    (error_rectificacion_cambio_tipo_no_soportado). En ese caso hay que usar un pedido de abono con
+    Tipo de abono = Error en IVA y emitir la factura correcta.
+
+B) Cliente SIN NIF ni identificación fiscal
+
+La AEAT ha comunicado que las facturas simplificadas deben llevar IVA. Un pedido sin NIF se emite
+como factura simplificada (F2, o R5 si es una rectificativa), y una factura simplificada no puede
+documentar una operación exenta. Por eso el plugin NO envía nada a la AEAT en estos casos:
+
+-   Emisión de la factura de un pedido exento sin NIF.
+
+-   Rectificación por diferencias de una factura exenta cuando el pedido no tiene NIF.
+
+-   Pedido de abono (importe negativo) de una operación exenta sin NIF.
+
+En todos ellos el plugin devuelve el aviso error_simplificada_exenta. En la rectificación por
+diferencias el rechazo se produce antes de asignar número de factura, de modo que no se consume un
+número de la serie de rectificativas.
+
+Cómo resolverlo:
+
+-   Indicar el NIF o la identificación fiscal del cliente en la dirección de facturación del pedido.
+
+-   Volver a enviar. Con NIF, la factura se emite como factura completa (F1) y las rectificaciones
+    como R1, con el tratamiento exento descrito en el apartado A.
+
+C) Facturas simplificadas exentas ya enviadas
+
+Si antes de esta versión se enviaron facturas simplificadas (F2) exentas que la AEAT aceptó, hay que
+regularizarlas. El plugin ofrece Anular factura (error de emisión) y Sustituye a factura
+simplificada (F3), pero cuál procede en cada caso debe decidirlo el obligado tributario junto con su
+asesor fiscal.
+
+Nota: la tabla de referencia del apartado 10 y este apartado son una guía de funcionamiento del
+plugin. No sustituyen la comprobación de la situación fiscal de cada operación.
+
+13. Nuevo tipo de IVA y recargo de equivalencia
+
+Nuevo tipo de IVA (%)
+
+Normalmente debe dejarse vacío cuando se pretende conservar el tipo de IVA original.
+
+En ese caso:
+
+Nuevo tipo de IVA (%) = vacío
+
+El plugin mantiene el tipo original.
+
+Nuevo tipo de recargo de equivalencia (%)
+
+Igualmente, normalmente debe dejarse vacío cuando se pretende conservar el recargo original.
+
+Nuevo tipo de recargo de equivalencia (%) = vacío
+
+14. Sustitución de factura simplificada
+
+El plugin contempla la opción:
+
+Sustituye a simplificada (F3)
+
+Debe seleccionarse Sí en el pedido correspondiente cuando la operación tenga que generar una F3 a
+partir de una F2 previamente aceptada.
+
+Esta función no debe confundirse con la modalidad de rectificación por sustitución S.
+
+15. Anulación de una factura
+
+El plugin dispone de la opción:
+
+Anular factura
+
+Cuando corresponda:
+
+1.  Seleccionar Sí en el pedido que contiene la factura que debe anularse.
+
+2.  Introducir el Motivo de la anulación.
+
+3.  Procesar el registro.
+
+El resultado es un:
+
+Registro de Anulación
+
+15.1. Aceptación del aviso legal y las condiciones de uso
+
+Para que el registro pueda enviarse a la AEAT, el cliente debe aceptar la casilla «He leído y acepto
+el aviso legal y las condiciones de uso *».
+
+La aceptación es obligatoria para el envío.
+
+Si el cliente no acepta el aviso legal y las condiciones de uso, no se enviará ningún registro a la
+AEAT.
+
+16. Estado que dispara el envío a VeriFactu
+
+El plugin utiliza un estado de pedido de HikaShop como momento para iniciar el procesamiento del
+registro.
+
+Debe asegurarse de que el número de factura ya exista antes de que se produzca el estado
+seleccionado.
+
+El flujo recomendado es:
+
+Pedido
+
+↓
+
+HikaShop genera el número de factura
+
+↓
+
+El pedido alcanza el estado configurado
+
+↓
+
+Plugin VeriFactu prepara el registro
+
+↓
+
+Envío a la AEAT
+
+↓
+
+Respuesta de la AEAT
+
+↓
+
+Registro del resultado
+
+↓
+
+Información QR VeriFactu
+
+Como referencia puede utilizarse:
+
+Factura enviada (invoice_sent)
+
+Lo importante es que el estado utilizado se produzca después de la generación del número de factura.
+
+17. Registro de VeriFactu
+
+El plugin conserva la información correspondiente al proceso de envío y a la respuesta de la AEAT.
+
+El registro permite consultar, según corresponda:
+
+-   Pedido relacionado.
+
+-   Número de factura.
+
+-   Fecha.
+
+-   Tipo de factura.
+
+-   Tipo de rectificación.
+
+-   Estado del envío.
+
+-   Respuesta de la AEAT.
+
+-   Código o información de respuesta.
+
+-   Información del registro.
+
+-   Datos necesarios para el QR.
+
+-   Información relacionada con errores o rechazos.
+
+18. Descarga del registro de facturación
+
+La versión v0.34.65 incorpora una opción de descarga del registro.
+
+Esta función permite obtener el registro asociado al proceso de facturación desde el propio sistema.
+
+La incorporación de esta funcionalidad está relacionada con el requisito de los Sistemas
+Informáticos de Facturación de disponer de capacidad para exportar los registros de facturación. La
+AEAT señala expresamente esta capacidad entre las características de los SIF.
+
+Además, la AEAT contempla servicios para la descarga de registros de facturación remitidos mediante
+VERI*FACTU.
+
+Por tanto, el usuario dispone de:
+
+Registro de facturación → consulta → descarga
+
+La descarga debe conservarse de acuerdo con las necesidades administrativas y fiscales del obligado
+tributario.
+
+La descarga proporcionada por el plugin es una función del propio sistema y no debe confundirse con
+la consulta/descarga que la AEAT proporciona desde su Sede Electrónica.
+
+19. Código QR VERI*FACTU
+
+Cuando el registro ha sido procesado correctamente y existe la información necesaria, el plugin
+genera la información correspondiente al código QR VERI*FACTU.
+
+El QR permite el cotejo de la factura con la información registrada en la AEAT.
+
+La propia AEAT indica que las facturas VERI*FACTU incorporan un código QR que permite enlazar con la
+información de cotejo de la factura.
+
+No es necesario modificar manualmente archivos de HikaShop ni del plugin de PDF para generar el QR
+del sistema VeriFactu.
+
+20. Avisos de caducidad del certificado
+
+El plugin comprueba la fecha de caducidad del certificado digital utilizado para la comunicación con
+la AEAT.
+
+La fecha se muestra en la configuración del plugin cuando puede ser obtenida correctamente del
+certificado.
+
+Además, el sistema puede enviar avisos por correo electrónico antes de la caducidad:
+
+  ---------------------------------------------------------------------------------------------------
+  Antelación                                                       Aviso
+  ---------------------------------------------------------------- ----------------------------------
+  6 meses                                                          Sí
+
+  4 meses                                                          Sí
+
+  2 meses                                                          Sí
+
+  1 mes                                                            Sí
+  ---------------------------------------------------------------------------------------------------
+
+Estos avisos tienen carácter preventivo.
+
+El administrador debe renovar el certificado antes de su fecha de caducidad.
+
+21. Funciones NO contempladas en el plugin
+
+La v0.34.65 debe considerarse un sistema específico para el flujo VERI*FACTU implementado en
+HikaShop.
+
+No están contempladas las siguientes funciones:
+
+21.1. Modalidad NO VERI*FACTU
+
+El plugin no implementa la modalidad alternativa de conservación de registros NO VERI*FACTU.
+
+La AEAT distingue entre:
+
+-   VERI*FACTU: remisión de los registros a la AEAT.
+
+-   NO VERI*FACTU: conservación de los registros en el sistema emisor con requisitos adicionales de
+    seguridad.
+
+Esta versión funciona exclusivamente mediante:
+
+VERI*FACTU
+
+↓
+
+Generación del registro
+
+↓
+
+Remisión a la AEAT
+
+↓
+
+Respuesta AEAT
+
+No existe un selector para convertir el plugin en un sistema NO VERI*FACTU.
+
+21.2. Firma XAdES y conservación local propia de NO VERI*FACTU
+
+El plugin no implementa el conjunto de funcionalidades adicionales necesarias para operar como
+sistema NO VERI*FACTU, entre ellas las características específicas de firma electrónica y
+conservación propias de esa modalidad.
+
+La AEAT señala que los sistemas NO VERI*FACTU tienen requisitos adicionales, entre ellos firma
+electrónica de registros y registro de eventos.
+
+21.3. Rectificación por sustitución «S»
+
+El plugin no contempla la modalidad de rectificación:
+
+S — Sustitución
+
+La implementación de las facturas rectificativas se realiza mediante la modalidad disponible de
+diferencias (I).
+
+No debe confundirse:
+
+-   F3 → sustitución de una factura simplificada en el flujo contemplado por el plugin.
+
+-   S → modalidad de rectificación por sustitución.
+
+21.4. Modificación manual de los registros enviados
+
+Una vez generado y enviado un registro a la AEAT, el usuario no debe modificar manualmente sus datos
+para alterar el registro ya remitido.
+
+Las correcciones deben realizarse mediante los procedimientos de facturación y rectificación
+correspondientes.
+
+21.5. Instalación manual mediante SSH o Composer
+
+La instalación normal de la v0.34.65 no requiere que el usuario:
+
+-   ejecute composer install;
+
+-   modifique composer.json;
+
+-   copie librerías manualmente;
+
+-   ejecute scripts mediante SSH;
+
+-   modifique archivos internos del plugin.
+
+Estas instrucciones pertenecían a procedimientos de versiones anteriores y no forman parte del
+procedimiento normal de instalación de la v0.34.65.
+
+21.6. Modificación manual de Attach Invoice
+
+No es necesario modificar manualmente:
+
+plugins/hikashop/attachinvoice/attachinvoice/invoice.php
+
+para instalar el plugin.
+
+Los antiguos manuales incluían un bloque de código para insertar manualmente el QR en esa plantilla.
+Ese procedimiento no debe formar parte del procedimiento de instalación de la v0.34.65.
+
+21.7. Operaciones fiscales no contempladas específicamente
+
+La versión v0.34.65 no contempla específicamente la gestión de las siguientes operaciones fiscales:
+
+-   OSS / IOSS — ventas B2C a consumidores de otros países de la Unión Europea en las que
+    corresponda aplicar el IVA del país de destino mediante los regímenes OSS/IOSS.
+
+-   Inversión del sujeto pasivo — operaciones B2B en las que el IVA es objeto de inversión del
+    sujeto pasivo y debe ser autorepercutido por el destinatario.
+
+-   Operaciones exentas del artículo 20 de la LIVA — operaciones exentas, entre otras, relacionadas
+    con determinados servicios sanitarios, educativos, financieros, etc.
+
+Estas operaciones no deben considerarse gestionadas automáticamente por el plugin simplemente por
+generar un registro VERI*FACTU.
+
+El usuario debe asegurarse de que la configuración fiscal de HikaShop y los datos de la factura
+representan correctamente la operación realizada antes de proceder a su envío a la AEAT.
+
+Importante: que una operación pueda ser registrada y remitida técnicamente a VERI*FACTU no significa
+que el plugin determine por sí mismo el tratamiento fiscal específico de OSS/IOSS, inversión del
+sujeto pasivo o las exenciones del artículo 20 de la LIVA.
+
+22. Comprobaciones finales
+
+Antes de poner el sistema en producción, comprueba:
+
+Certificado
+
+-   El certificado .pfx o .p12 está correctamente almacenado.
+
+-   El certificado no es accesible mediante una URL pública.
+
+-   La contraseña es correcta.
+
+-   La fecha de caducidad aparece correctamente.
+
+-   El correo de avisos está correctamente configurado, cuando corresponda.
+
+Plugin
+
+-   PLG_HIKASHOP_VERIFACTU está instalado.
+
+-   Está habilitado.
+
+-   El NIF del emisor es correcto.
+
+-   El nombre/razón social es correcto.
+
+-   El entorno seleccionado es el adecuado.
+
+-   La ruta del certificado es correcta.
+
+-   La contraseña del certificado es correcta.
+
+-   El estado que dispara el envío es posterior a la generación de la factura.
+
+Campos HikaShop
+
+-   Existe Tipo de abono.
+
+-   Existe Comentario del abono.
+
+-   verifactu_tipo_abono es el nombre correcto del campo.
+
+-   verifactu_comentario_abono es el nombre correcto del campo.
+
+-   Los campos están asociados a order.
+
+-   Están disponibles en el formulario del back-end.
+
+-   Están disponibles en el listado del back-end.
+
+-   Están disponibles en la información adicional del pedido.
+
+VeriFactu
+
+-   Se genera una factura de prueba.
+
+-   Se genera el registro VeriFactu.
+
+-   El registro se remite a la AEAT.
+
+-   Se recibe la respuesta de la AEAT.
+
+-   Se almacena el resultado.
+
+-   Se puede consultar el registro.
+
+-   Se puede descargar el registro.
+
+-   Se genera el QR cuando corresponde.
+
+-   Se puede comprobar la información del envío.
+
+Rectificaciones
+
+-   Se puede seleccionar el tipo de abono.
+
+-   Se puede introducir el comentario.
+
+-   Se puede generar una rectificación por diferencias.
+
+-   Se puede utilizar la opción F3 cuando corresponda.
+
+-   Se puede generar un registro de anulación cuando corresponda.
+
+23. Seguridad
+
+El certificado digital es un elemento sensible.
+
+Nunca:
+
+-   publiques el archivo .pfx o .p12;
+
+-   lo almacenes en una carpeta públicamente accesible;
+
+-   compartas la contraseña del certificado junto con el archivo;
+
+-   utilices una contraseña débil;
+
+-   copies el certificado a una ubicación pública de la web.
+
+Mantén una copia de seguridad segura del certificado y conserva la contraseña separadamente.
+
+24. Modalidad de funcionamiento
+
+La v0.34.65 está diseñada para trabajar en modalidad:
+
+VERI*FACTU
+
+El funcionamiento es:
+
+HikaShop
+
+↓
+
+Factura
+
+↓
+
+Registro de facturación
+
+↓
+
+Encadenamiento / información del registro
+
+↓
+
+Remisión a la AEAT
+
+↓
+
+Respuesta AEAT
+
+↓
+
+Registro del resultado
+
+↓
+
+QR VERI*FACTU
+
+La AEAT establece que los sistemas VERI*FACTU remiten en línea los registros de facturación a la
+Agencia Tributaria.
+
+La AEAT también señala que todos los SIF deben tener capacidad para exportar y transmitir los
+registros de facturación.
+
+25. Consideraciones sobre la AEAT
+
+La información transmitida por el plugin se procesa mediante los servicios de la AEAT.
+
+La respuesta recibida puede indicar, entre otros estados:
+
+-   aceptación;
+
+-   aceptación con errores;
+
+-   rechazo;
+
+-   errores de identificación;
+
+-   errores de datos;
+
+-   registros duplicados;
+
+-   otros códigos de respuesta de los servicios de la AEAT.
+
+El plugin registra la respuesta para permitir su consulta y seguimiento.
+
+Si un registro requiere una corrección, esta debe realizarse mediante el procedimiento
+correspondiente, evitando modificar artificialmente el registro ya enviado.
+
+26. Resultado esperado
+
+Una vez configurado correctamente el sistema:
+
+-   Joomla y HikaShop generan las facturas.
+
+-   El plugin genera el registro de facturación.
+
+-   El registro se remite a la AEAT.
+
+-   La respuesta queda registrada.
+
+-   El usuario puede consultar el estado.
+
+-   El registro puede descargarse.
+
+-   El QR VERI*FACTU puede generarse cuando corresponda.
+
+-   Las facturas rectificativas pueden clasificarse mediante Tipo de abono.
+
+-   Las anulaciones pueden gestionarse mediante Anular factura.
+
+-   Las F3 contempladas por el plugin pueden gestionarse mediante Sustituye a simplificada.
+
+-   El certificado digital muestra su fecha de caducidad cuando está disponible.
+
+-   El usuario recibe avisos por correo electrónico antes de la caducidad del certificado.
+
+-   El sistema funciona en modalidad VERI*FACTU con remisión a la AEAT.

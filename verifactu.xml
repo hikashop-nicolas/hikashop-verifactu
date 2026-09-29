@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <extension type="plugin" group="hikashop" method="upgrade">
     <name>Hikashop Verifactu plugin</name>
-    <author>Locker25</author>
-    <creationDate>16/08/2026</creationDate>
-    <copyright>Locker25</copyright>
-    <license>GPLv2</license>
-    <version>0.31.1</version>
+    <author>Custom</author>
+    <creationDate>28/09/2026</creationDate>
+    <copyright>Custom</copyright>
+    <license>GPLv3</license>
+    <version>0.34.65</version>
     <description>Integración de VeriFactu (AEAT) con HikaShop: facturación, QR, envío AEAT, declaración responsable y condiciones de uso.</description>
 
     <scriptfile>script.php</scriptfile>
@@ -13,6 +13,10 @@
     <files>
         <filename plugin="verifactu">verifactu.php</filename>
         <filename>composer.json</filename>
+        <filename>LICENSE</filename>
+        <filename>DISCLAIMER.md</filename>
+        <filename>Manual_de_instalacion_y_configuracion.txt</filename>
+        <filename>CHANGELOG.md</filename>
         <folder>src</folder>
         <folder>sql</folder>
         <folder>fields</folder>
@@ -45,31 +49,53 @@
                 <field name="nombre_desarrollador" type="text" label="Nombre/razón social del desarrollador del software" default="" />
                 <field name="estado_disparador" type="orderstatus" label="Estado que dispara el envío a VeriFactu" default="invoice_generated" description="El plugin envía la factura a la AEAT cuando el pedido pasa a este estado. Se lee directamente de tus estados de pedido configurados en HikaShop." />
                 <field name="campo_tipo_abono" type="text" label="Campo HikaShop: Tipo de abono" default="verifactu_tipo_abono" description="Nombre interno del campo personalizado de pedido/order creado en HikaShop. Recomendado: verifactu_tipo_abono. Debe contener uno de los valores definidos en el plugin." />
+                <field name="campo_sustituye_simplificada" type="text" label="Campo HikaShop: Sustituye a simplificada (F3)" default="verifactu_sustituye_simplificada" description="Nombre interno del campo personalizado de pedido/order (Sí/No) creado en HikaShop. Márcalo en un pedido cuando el cliente pide después una factura con NIF para un pedido que ya tiene una F2 (simplificada) aceptada; el plugin emite entonces una F3 que la sustituye, referenciándola. Exige que el pedido tenga NIF y que exista una F2 aceptada previa para el mismo pedido; si no se cumple alguna de las dos, el envío se rechaza con un error explicativo." />
+                <field name="campo_anular_factura" type="text" label="Campo HikaShop: Anular factura (error de emisión)" default="verifactu_anular_factura" description="Nombre interno del campo personalizado de pedido/order (Sí/No). Úsalo SOLO cuando la operación no existió de verdad (factura emitida por error, pedido duplicado, etc.) -- NO para devoluciones ni correcciones de una venta real, para eso está 'Tipo de abono' (R1-R5). El plugin envía a la AEAT un Registro de Anulación (RegistroAnulacion) referenciando la última factura aceptada de ese pedido, no una factura con importe negativo. Esa factura anulada NUNCA se reutiliza ni se borra: queda marcada como anulada y su número no vuelve a usarse." />
+                <field name="campo_motivo_anulacion" type="text" label="Campo HikaShop: Motivo de la anulación" default="verifactu_motivo_anulacion" description="Nombre interno del campo personalizado de pedido/order (texto libre) donde se explica por qué se anula. Se guarda en el registro local del plugin para tener constancia; la AEAT no exige este campo." />
+                <field name="campo_rectificar_diferencias" type="text" label="Campo HikaShop: Rectificar por diferencias (R1)" default="verifactu_rectificar_diferencias" description="Nombre interno del campo personalizado de pedido/order (Sí/No). Úsalo para corregir una factura YA aceptada (aumentar o disminuir su base, por ejemplo de 1.000 € a 1.200 €) mediante una rectificativa por diferencias (R1), sin necesidad de un pedido de abono con importe negativo. Rellena también 'Nueva base imponible' y, si corresponde, 'Nuevo tipo de IVA'/'Nuevo tipo de recargo'; el plugin calcula solo la diferencia frente a la última factura aceptada de este mismo pedido y la envía como R1." />
+                <field name="campo_nueva_base_imponible" type="text" label="Campo HikaShop: Nueva base imponible" default="verifactu_nueva_base_imponible" description="Nombre interno del campo personalizado de pedido/order (numérico). La base imponible CORRECTA y definitiva de la factura (no la diferencia): el plugin resta la base de la factura original para obtener el importe a declarar. Solo se usa cuando 'Rectificar por diferencias' está en Sí." />
+                <field name="campo_nuevo_tipo_iva" type="text" label="Campo HikaShop: Nuevo tipo de IVA (%)" default="verifactu_nuevo_tipo_iva" description="Nombre interno del campo personalizado de pedido/order (numérico, ej. 21). Déjalo en blanco o en 0 para mantener el mismo tipo de IVA que ya tenía la factura original (0 se trata igual que vacío, porque HikaShop no siempre deja el campo realmente vacío tras guardar una vez). Un tipo distinto al original se rechaza: esta rectificación solo admite corregir la BASE, no el tipo." />
+                <field name="campo_nuevo_tipo_recargo" type="text" label="Campo HikaShop: Nuevo tipo de recargo de equivalencia (%)" default="verifactu_nuevo_tipo_recargo" description="Nombre interno del campo personalizado de pedido/order (numérico, ej. 5.2). Déjalo en blanco o en 0 para mantener el mismo tipo de recargo que ya tenía la factura original (0 se trata igual que vacío, incluido cuando la original no llevaba recargo). Un tipo distinto al original se rechaza." />
+                <field name="limite_simplificada" type="text" label="Importe máximo de factura simplificada (€, IVA incluido)" default="3000" description="Un pedido SIN NIF/identificación fiscal del cliente se emite como factura simplificada (F2), que solo es válida hasta cierto importe: 3000 (ventas al por menor a consumidor final) o 400 (límite general). Si el importe del pedido lo supera, el plugin NO envía nada a la AEAT y devuelve el error 'error_simplificada_supera_limite': hay que indicar el NIF del cliente para emitir una factura completa (F1). Pon 400 si tu tienda no vende solo a consumidores finales. Las rectificativas (R5) no tienen límite." />
+                <field name="limite_simplificada_nota" type="note" class="alert alert-info" description="En 2026, los límites de la factura simplificada son 3.000 € (B2C) y 400 € (B2B), aunque pueden variar en el futuro." />
+                <field name="numeracion_propia_activa" type="radio" label="Numeración propia por tipo de factura" default="0" description="Por defecto DESACTIVADO -- una actualización del plugin nunca cambia la numeración de una tienda sin que el propio comerciante lo active a conciencia. Si está desactivado, todas las facturas comparten la numeración nativa y continua de HikaShop, tal cual la generaba el plugin antes de esta opción. Si está activado, F1, F2 (simplificadas), F3 (sustituye una simplificada) y R (rectificativas R1-R5) pasan a tener cada una su propia numeración correlativa, con el prefijo indicado abajo para cada una. Esto es necesario para que ninguna tenga huecos: si solo se separasen algunas familias pero otra siguiera usando el contador nativo de HikaShop, ese contador nativo seguiría avanzando también en los pedidos de las familias separadas (para asignarles un número que luego se descarta), dejando huecos. El número final de cada factura es el que se registra en la AEAT y también el que se imprime en la factura.">
+                    <option value="1">Sí</option>
+                    <option value="0">No</option>
+                </field>
+                <field name="prefijo_f1" type="text" label="Prefijo de la serie F1 (ordinarias)" default="" description="Vacío por defecto, para mantener el aspecto actual (ej. 26-0214) -- ten en cuenta que con el prefijo vacío, la serie propia tiene EXACTAMENTE el mismo formato que la numeración nativa de HikaShop, que sigue avanzando por su cuenta en cualquier factura que HikaShop numere aunque nunca llegue a procesarse por este plugin. El plugin comprueba y evita automáticamente que eso produzca un número duplicado (salta al siguiente libre si hace falta), pero si prefieres evitar la coincidencia de raíz, dale también un prefijo propio a F1 (ej. 'F'). Solo se usa si la numeración propia está activada." />
+                <field name="prefijo_f2" type="text" label="Prefijo de la serie F2 (simplificadas)" default="FS" description="Ej. con 'FS' el año 2026 genera números 26FS-0001, 26FS-0002... Solo se usa si la numeración propia está activada." />
+                <field name="prefijo_r" type="text" label="Prefijo de la serie R (rectificativas)" default="R" description="Ej. con 'R' el año 2026 genera números 26R-0001, 26R-0002... Se usa para R1, R2, R3, R4 y R5 por igual (comparten una sola serie: R5 es la rectificativa de una factura simplificada, se emite automáticamente cuando la rectificativa corresponde a un pedido sin NIF). Solo se usa si la numeración propia está activada." />
+                <field name="prefijo_f3" type="text" label="Prefijo de la serie F3 (sustituye simplificada)" default="F3" description="Ej. con 'F3' el año 2026 genera números 26F3-0001, 26F3-0002... Solo se usa si la numeración propia está activada." />
+                <field name="semilla_f1" type="text" label="Número inicial manual -- serie F1" default="" description="Vacío = detección automática: al activar la numeración propia por primera vez, la serie continúa desde el número más alto ya usado con el formato exacto {año}{prefijo}-{dígitos} (ej. 26-0213). Si tu numeración nativa de HikaShop usa OTRO formato (otro separador, sin año, con letras en otro sitio...), esa detección no reconocerá nada y la serie arrancaría en 0001 -- pon aquí manualmente el último número ya usado (solo el número, ej. 213) para que continúe correctamente. Solo se usa la primera vez, para inicializar el contador; los envíos siguientes ya ignoran este campo." />
+                <field name="semilla_f2" type="text" label="Número inicial manual -- serie F2" default="" description="Igual que el de F1, pero para la serie F2 (simplificadas). Normalmente no hace falta, porque al llevar prefijo propio (FS) el formato ya no coincide con nada previo y la serie simplemente empieza en 1." />
+                <field name="semilla_f3" type="text" label="Número inicial manual -- serie F3" default="" description="Igual que el de F1, pero para la serie F3 (sustituye simplificada). Normalmente no hace falta." />
+                <field name="semilla_r" type="text" label="Número inicial manual -- serie R" default="" description="Igual que el de F1, pero para la serie R (rectificativas). Normalmente no hace falta." />
+                <field name="aviso_legal_separador" type="avisolegal" label="Aviso legal y exclusión de responsabilidad" />
+                <field name="aviso_responsabilidad_aceptado" type="radio" label="He leído y acepto el aviso legal y las condiciones de uso" default="0" required="true" description="Obligatorio. Mientras no esté marcado 'Sí', el plugin sigue numerando y registrando localmente cada pedido (estado 'error_aviso_legal_no_aceptado', visible en el registro del plugin), pero NO envía nada a la AEAT, sea cual sea el Entorno configurado abajo. En una actualización desde una versión anterior a la 0.34.7, este campo se activa automáticamente para no interrumpir un envío que ya estaba funcionando; en una instalación nueva empieza en 'No' y hay que marcarlo a mano.">
+                    <option value="1">Sí, he leído y acepto</option>
+                    <option value="0">No</option>
+                </field>
                 <field name="entorno" type="list" label="Entorno AEAT" default="pre">
                     <option value="pre">Pruebas (pre-producción)</option>
                     <option value="prod">Producción</option>
                 </field>
                 <field name="cert_path" type="text" label="Ruta al certificado digital (.pfx/.p12)" default="" />
                 <field name="cert_pass" type="password" label="Contraseña del certificado" default="" />
-                <field name="envio_modo" type="list" label="Modo de envío" default="cola">
-                    <option value="inmediato">Inmediato (al confirmar factura)</option>
-                    <option value="cola">En cola / lote programado</option>
-                </field>
+                <field name="certificado_info" type="certificateinfo" label="Certificado Digital" />
+                <field name="certificado_aviso_email" type="email" label="Email para avisos de caducidad" default="" description="Si se deja vacío, se utiliza el email configurado en Joomla como correo del sitio." />
                 <field name="declaracion_separador" type="declaration" label="Declaración responsable" />
-                <field name="declaracion_nombre" type="text" label="Nombre / razón social para la Declaración Responsable" default="" description="Se puede cargar inicialmente desde los datos del emisor configurados en el plugin. El valor queda editable y se guarda en la configuración del plugin." />
-                <field name="declaracion_nif" type="text" label="NIF para la Declaración Responsable" default="" description="Se puede cargar inicialmente desde el NIF del emisor configurado en el plugin. El valor queda editable." />
-                <field name="declaracion_direccion" type="textarea" label="Dirección fiscal para la Declaración Responsable" default="" rows="3" description="Se puede cargar inicialmente desde la dirección de la tienda de HikaShop. El valor queda editable." />
-                <field name="declaracion_cp" type="text" label="Código postal" default="" />
-                <field name="declaracion_localidad" type="text" label="Localidad" default="" />
-                <field name="declaracion_provincia" type="text" label="Provincia" default="" />
-                <field name="declaracion_pais" type="text" label="País" default="España" />
+                <field name="declaracion_nombre" type="text" label="Nombre / razón social para la Declaración Responsable" default="" readonly="true" description="Se obtiene automáticamente del campo «Nombre/razón social del emisor» y no puede modificarse aquí." />
+                <field name="declaracion_nif" type="text" label="NIF para la Declaración Responsable" default="" readonly="true" description="Se obtiene automáticamente del campo «NIF del emisor» y no puede modificarse aquí." />
+                <field name="declaracion_direccion" type="textarea" label="Dirección fiscal para la Declaración Responsable" default="" rows="3" description="Se carga automáticamente desde la dirección de la tienda de HikaShop si existe. Este campo sí puede modificarse manualmente." />
                 <field name="declaracion_lugar" type="text" label="Lugar de firma" default="" />
-                <field name="declaracion_fecha" type="text" label="Fecha de firma" default="" description="Formato DD/MM/YYYY. Si se deja vacío, se utilizará la fecha actual al generar la declaración." />
+                <field name="declaracion_fecha" type="text" label="Fecha de firma" default="" readonly="true" description="Se rellena automáticamente con la fecha de hoy y no puede modificarse aquí." />
                 <field name="declaracion_uso_propio" type="radio" label="Uso exclusivo por este obligado tributario" default="1">
                     <option value="1">Sí</option>
                     <option value="0">No</option>
                 </field>
-                <field name="declaracion_version" type="text" label="Versión del sistema declarada" default="" description="Versión concreta del plugin/sistema a la que corresponde la declaración." />
+                <field name="declaracion_version" type="text" label="Versión del sistema declarada" default="" readonly="true" description="Se obtiene automáticamente de la versión actual del plugin y no puede modificarse aquí." />
+
+                <field name="registro_separador" type="registrolink" label="Registro de facturación (consulta y exportación)" />
 
             </fieldset>
         </fields>

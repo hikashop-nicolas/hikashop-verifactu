@@ -1,2 +1,25 @@
-DROP TABLE IF EXISTS `#__hikashop_verifactu_declaracion`;
-DROP TABLE IF EXISTS `#__hikashop_verifactu_registro`;
+-- v0.34.42: auditoría de seguridad -- estas dos tablas son el registro de
+-- facturación VeriFactu (RD 1007/2023 art. 8 / Orden HAC/1177/2024:
+-- conservación, integridad, trazabilidad e inalterabilidad) y la
+-- declaración responsable firmada del sistema. Desinstalar el PLUGIN no
+-- debe borrar NUNCA estos registros -- son datos fiscales que la ley obliga
+-- a conservar, independientemente de que el software que los generó siga
+-- instalado o no. Antes este fichero hacía:
+--
+--   DROP TABLE IF EXISTS `#__hikashop_verifactu_declaracion`;
+--   DROP TABLE IF EXISTS `#__hikashop_verifactu_registro`;
+--
+-- lo que borraba ambas tablas -- y su contenido, sin posibilidad de
+-- recuperarlo desde la propia web -- en cuanto un administrador
+-- desinstalaba el plugin, aunque fuera solo para reinstalarlo a
+-- continuación. Se retira aquí a propósito: NO añadir de nuevo ningún DROP
+-- TABLE sobre `#__hikashop_verifactu_registro` ni
+-- `#__hikashop_verifactu_declaracion` en este fichero.
+--
+-- Esto no deja nada huérfano: script.php::uninstall() ya se encarga, aparte
+-- de esto, de eliminar el override de layout de factura que es lo único que
+-- de verdad necesitaba dejar de existir (para que no intente llamar a estas
+-- tablas si el plugin ya no está). Si el administrador quiere de verdad
+-- borrar este histórico, puede hacerlo a mano desde phpMyAdmin (o
+-- equivalente) sobre estas dos tablas -- una decisión explícita y
+-- consciente, nunca un efecto colateral de desinstalar el plugin.

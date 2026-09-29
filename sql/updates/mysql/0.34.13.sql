@@ -1,0 +1,15 @@
+-- v0.34.13: `verifactu_sustituye_simplificada` se creó como TINYINT(1), pero el
+-- campo de HikaShop es un singledropdown que envía texto ('No'/'Sí'), no 0/1.
+--
+-- v0.34.19: el ALTER TABLE ... MODIFY COLUMN que estaba aquí se ha movido a
+-- script.php (postflight). En una actualización desde una versión anterior a la
+-- 0.33.0 (p. ej. la 0.32.2) esa columna todavía no existe cuando Joomla ejecuta
+-- los SQL de actualización: la crea script.php en el postflight, que Joomla
+-- ejecuta DESPUÉS de estos SQL. MySQL respondía "Unknown column", Joomla
+-- interrumpía la actualización y el postflight no llegaba a ejecutarse (ni
+-- columnas nuevas, ni migración del aviso legal); al reintentar, fallaba en el
+-- mismo punto. script.php hace ahora el cambio solo si la columna existe y
+-- todavía es TINYINT.
+--
+-- Este archivo se mantiene (sin sentencias) para que la numeración de versiones
+-- del esquema de Joomla no cambie.
