@@ -23,6 +23,10 @@ Rectificación por diferencias:
   una R1 por el total de la base en negativo).
 
 Otras correcciones:
+- La fecha de expedición congelada ya se guarda: insertObject() recibía un
+  objeto literal, lo que en Joomla 4 y posteriores da un error (capturado y
+  anotado en el log), así que cada reintento se enviaba con la fecha del
+  reintento.
 - Pedidos de abono: la factura rectificada se toma del "Comentario del
   abono" si contiene un número de factura del registro; la factura anterior
   (número - 1) solo se usa si es del mismo cliente.
