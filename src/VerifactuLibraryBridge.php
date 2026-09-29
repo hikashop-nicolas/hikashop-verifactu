@@ -368,6 +368,52 @@ class VerifactuLibraryBridge
      * límite general si la tienda no vende solo a consumidores finales. Un
      * valor vacío, no numérico o <= 0 se trata como el valor por defecto.
      */
+    /**
+     * Importe del pedido en euros, para compararlo con el límite de la
+     * simplificada: order_full_price está en la moneda del pedido. Usa los
+     * tipos de cambio actuales de HikaShop; sin ellos, el importe tal cual.
+     */
+    private function importeEnEuros($order, float $importe): float
+    {
+        $monedaPedido = (int) ($order->order_currency_id ?? 0);
+        if ($monedaPedido === 0) {
+            return $importe;
+        }
+
+        try {
+            $this->db->setQuery(
+                $this->db->getQuery(true)
+                    ->select(['currency_id', 'currency_code', 'currency_rate'])
+                    ->from('#__hikashop_currency')
+                    ->where('(currency_id = ' . $monedaPedido . ' OR currency_code = ' . $this->db->quote('EUR') . ')')
+            );
+            $monedas = $this->db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return $importe;
+        }
+
+        $tasaPedido = null;
+        $tasaEuro = null;
+        foreach ($monedas as $moneda) {
+            if ((int) $moneda->currency_id === $monedaPedido) {
+                if ($moneda->currency_code === 'EUR') {
+                    return $importe;
+                }
+                $tasaPedido = (float) $moneda->currency_rate;
+            }
+            if ($moneda->currency_code === 'EUR') {
+                $tasaEuro = (float) $moneda->currency_rate;
+            }
+        }
+
+        if (!$tasaPedido || !$tasaEuro) {
+            return $importe;
+        }
+
+        // en HikaShop los tipos son relativos a la moneda principal
+        return round($importe / $tasaPedido * $tasaEuro, 2);
+    }
+
     private function getLimiteSimplificada(): float
     {
         $valor = trim((string) $this->params->get('limite_simplificada', '3000'));
@@ -1306,11 +1352,12 @@ class VerifactuLibraryBridge
         // exige identificar al destinatario.
         if ($familia === 'F2') {
             $limiteSimplificada = $this->getLimiteSimplificada();
-            if (abs($totalPedido) > $limiteSimplificada) {
+            $totalEnEuros = $this->importeEnEuros($order, $totalPedido);
+            if (abs($totalEnEuros) > $limiteSimplificada) {
                 return [
                     'estado' => 'error_simplificada_supera_limite',
                     'csv' => null,
-                    'errores' => ['El pedido no tiene NIF/identificación fiscal del cliente, así que saldría como factura simplificada (F2), pero su importe (' . number_format(abs($totalPedido), 2, ',', '.') . ' € IVA incluido) supera el límite permitido para una simplificada (' . number_format($limiteSimplificada, 2, ',', '.') . ' €; 400 € en general, 3.000 € en ventas al por menor a consumidor final). Indica el NIF/identificación fiscal del cliente en la dirección de facturación para emitirla como factura completa (F1) y reenvía.'],
+                    'errores' => ['El pedido no tiene NIF/identificación fiscal del cliente, así que saldría como factura simplificada (F2), pero su importe (' . number_format(abs($totalEnEuros), 2, ',', '.') . ' € IVA incluido) supera el límite permitido para una simplificada (' . number_format($limiteSimplificada, 2, ',', '.') . ' €; 400 € en general, 3.000 € en ventas al por menor a consumidor final). Indica el NIF/identificación fiscal del cliente en la dirección de facturación para emitirla como factura completa (F1) y reenvía.'],
                     'qr' => null,
                 ];
             }

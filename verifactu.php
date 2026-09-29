@@ -2614,6 +2614,18 @@ JS;
 
         if (!in_array($resultado['estado'], ['aceptado', 'aceptado_con_errores'], true)) {
             self::log('Rechazado/erróneo en pedido ' . $order->order_id . ': ' . json_encode($resultado, JSON_INVALID_UTF8_SUBSTITUTE), \Joomla\CMS\Log\Log::WARNING);
+
+            // que el administrador que guarda el pedido lo vea, no solo el log
+            $estado = (string) $resultado['estado'];
+            $app = \Joomla\CMS\Factory::getApplication();
+            if ($app->isClient('administrator') && (strpos($estado, 'error_') === 0 || $estado === 'rechazado')) {
+                $errores = array_filter((array) ($resultado['errores'] ?? []), 'is_string');
+                $app->enqueueMessage(
+                    'VeriFactu, pedido ' . htmlspecialchars((string) ($order->order_number ?? $order->order_id), ENT_QUOTES, 'UTF-8') . ': '
+                    . htmlspecialchars($errores ? implode(' ', $errores) : $estado, ENT_QUOTES, 'UTF-8'),
+                    'warning'
+                );
+            }
         }
     }
 
