@@ -2405,6 +2405,10 @@ JS;
 
             $data = $app->input->get('data', [], 'array');
             $orderData = isset($data['order']) && is_array($data['order']) ? $data['order'] : [];
+            // el popup "Información adicional" del pedido envía los campos en data[orderfields]
+            if (isset($data['orderfields']) && is_array($data['orderfields'])) {
+                $orderData = array_merge($orderData, $data['orderfields']);
+            }
             if (empty($orderData)) {
                 return;
             }
