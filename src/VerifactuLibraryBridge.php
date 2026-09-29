@@ -716,15 +716,14 @@ class VerifactuLibraryBridge
         $hoy = date('Y-m-d');
 
         try {
-            $this->db->insertObject(
-                '#__hikashop_verifactu_fecha_expedicion',
-                (object) [
-                    'order_id' => $orderId,
-                    'familia' => $familia,
-                    'fecha_expedicion' => $hoy,
-                    'created' => date('Y-m-d H:i:s'),
-                ]
-            );
+            // insertObject() recibe el objeto por referencia: un literal da un Error en Joomla 4+
+            $fila = (object) [
+                'order_id' => $orderId,
+                'familia' => $familia,
+                'fecha_expedicion' => $hoy,
+                'created' => date('Y-m-d H:i:s'),
+            ];
+            $this->db->insertObject('#__hikashop_verifactu_fecha_expedicion', $fila);
         } catch (\Throwable $e) {
             // Condición de carrera (dos procesos casi simultáneos) u otro
             // fallo de escritura: no debe bloquear la emisión de la
