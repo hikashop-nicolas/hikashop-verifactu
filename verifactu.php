@@ -512,6 +512,24 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
             return $this->buildAyudaAccionesHtml();
         }
 
+        // v0.34.70: columna "VeriFactu" inyectada en el listado de pedidos
+        // (HikaShop -> Pedidos -> Compras) -- ver onAfterRender() e
+        // scriptColumnaEstadoListado(). Devuelve, para cada order_id
+        // solicitado, el estado del ÚLTIMO intento de envío (o 'excepcion'
+        // si el fallo más reciente ni siquiera llegó a guardarse en el
+        // registro, ver estadosPorPedido()).
+        if ($task === 'estados_pedidos') {
+            $inputIds = \Joomla\CMS\Factory::getApplication()->input;
+            $ids = $inputIds->get('order_ids', [], 'array');
+            $ids = array_values(array_unique(array_filter(array_map('intval', (array) $ids))));
+            $ids = array_slice($ids, 0, 200);
+
+            return (object) [
+                'success' => true,
+                'estados' => empty($ids) ? new \stdClass() : $this->estadosPorPedido($ids),
+            ];
+        }
+
         // --- Registro de facturación VeriFactu: consulta y exportación ---
         // (RD 1007/2023 / Orden HAC/1177/2024: conservación, accesibilidad,
         // legibilidad y posibilidad de volcado/exportación de los registros
@@ -1122,7 +1140,7 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
         $version = htmlspecialchars(VerifactuVersion::get(), ENT_QUOTES, 'UTF-8');
 
         $filas = [
-            ['1', 'Tipo de abono', 'Seleccionar el motivo correspondiente y utilizar un pedido de abono con importe negativo.', 'Crear pedido nuevo de abono/rectificación', 'R1/R2/R3/R4/R5 según corresponda'],
+            ['1', 'Tipo abono', 'Seleccionar el motivo correspondiente y utilizar un pedido de abono con importe negativo.', 'Crear pedido nuevo de abono/rectificación', 'R1/R2/R3/R4/R5 según corresponda'],
             ['1.1', 'Factura', 'Pedido/factura normal. No es realmente un motivo de abono. No seleccionar motivo. Si aparece, puede dejarse en <em>Factura</em>.', '', 'F1 o F2'],
             ['1.2', 'Devolución completa', 'Se devuelve la totalidad. El pedido de abono debe tener importe negativo.', 'Crear pedido nuevo', 'R1 por diferencias (I) si el destinatario tiene NIF'],
             ['1.3', 'Devolución parcial', 'Se devuelve solamente una parte. El pedido de abono debe representar la parte devuelta.', 'Crear pedido nuevo', 'R1 por diferencias (I)'],
@@ -1133,13 +1151,13 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
             ['1.8', 'Crédito incobrable', 'Modificar la base imponible por crédito incobrable.', 'Crear pedido nuevo', 'R3 por diferencias (I)'],
             ['1.9', 'Otro', 'Utilizar para otra causa de rectificación no incluida anteriormente.', 'Crear pedido nuevo', 'R4 por diferencias (I)'],
             ['2', 'Comentario del abono', 'Introducir una explicación o comentario sobre el abono/rectificación.', '', 'Información complementaria'],
-            ['3', 'Sustituye a simplificada (F3)', 'Primero modificar los datos del cliente y guardar. Después seleccionar <em>Sí</em> cuando se sustituye una factura simplificada F2 previamente aceptada.', 'Modificar pedido existente', 'F3'],
+            ['3', 'Sustituye F2 (F3)', 'Primero modificar los datos del cliente y guardar. Después seleccionar <em>Sí</em> cuando se sustituye una factura simplificada F2 previamente aceptada.', 'Modificar pedido existente', 'F3'],
             ['4', 'Anular factura', 'Seleccionar <em>Sí</em> cuando sea necesario anular una factura.', 'Modificar pedido existente', 'Registro de Anulación'],
-            ['5', 'Motivo de la anulación', 'Introducir el motivo de la anulación.', '', 'Información del Registro de Anulación'],
-            ['6', 'Rectificar por diferencias', 'Seleccionar <em>Sí</em> para realizar una rectificación por diferencias.', 'Modificar pedido existente', 'R1 por diferencias (I) / R5 si corresponde'],
-            ['7', 'Nueva base imponible', 'Introducir la <strong>base imponible final correcta</strong>, no la diferencia.', '', 'El plugin calcula la diferencia'],
-            ['8', 'Nuevo tipo de IVA (%)', 'Normalmente dejar vacío para conservar el tipo de IVA original.', '', 'Mantiene el IVA original'],
-            ['9', 'Nuevo tipo de recargo de equivalencia (%)', 'Normalmente dejar vacío para conservar el recargo original.', '', 'Mantiene el recargo original'],
+            ['5', 'Motivo anulación', 'Introducir el motivo de la anulación.', '', 'Información del Registro de Anulación'],
+            ['6', 'Rectificar R1', 'Seleccionar <em>Sí</em> para realizar una rectificación por diferencias.', 'Modificar pedido existente', 'R1 por diferencias (I) / R5 si corresponde'],
+            ['7', 'Nueva base', 'Introducir la <strong>base imponible final correcta</strong>, no la diferencia.', '', 'El plugin calcula la diferencia'],
+            ['8', 'Nuevo IVA %', 'Normalmente dejar vacío para conservar el tipo de IVA original.', '', 'Mantiene el IVA original'],
+            ['9', 'Nuevo recargo %', 'Normalmente dejar vacío para conservar el recargo original.', '', 'Mantiene el recargo original'],
         ];
 
         $filasHtml = '';
@@ -1167,7 +1185,7 @@ td.resultado{white-space:nowrap;font-weight:600;color:#1a5da0}
 tr:hover td{background:#f9f9f9}
 </style></head><body>
 <h1>Acciones Veri*Factu</h1>
-<p class="subt">v{$version} &middot; Qué hacer en cada caso y qué resultado VeriFactu (F1/F2/F3/R.../Registro de Anulación) genera. Los campos "1.x" son las opciones del desplegable "Tipo de abono".</p>
+<p class="subt">v{$version} &middot; Qué hacer en cada caso y qué resultado VeriFactu (F1/F2/F3/R.../Registro de Anulación) genera. Los campos "1.x" son las opciones del desplegable "Tipo abono".</p>
 <div style="overflow-x:auto">
 <table>
   <thead><tr><th>Nº</th><th>Campo</th><th>Qué hacer</th><th>Crear / modificar</th><th>Resultado VeriFactu</th></tr></thead>
@@ -1472,11 +1490,47 @@ HTML;
         // No ejecutar durante instalaciones/actualizaciones CLI ni en peticiones
         // que no tengan Joomla completamente disponible.
         try {
-            // abre el certificado y consulta la BBDD: en la administración y una vez al día basta
             $app = \Joomla\CMS\Factory::getApplication();
             if (!$app->isClient('administrator')) {
                 return;
             }
+
+            // v0.34.67: aviso de "aceptación pendiente", en CADA página de la
+            // administración (sin el marcador diario de abajo, que es solo
+            // para no repetir la lectura del certificado). Mientras no se
+            // acepte, no se envía nada a la AEAT -- ver el comentario de
+            // avisarAceptacionAvisoLegalPendiente() en script.php sobre el
+            // porqué de no auto-aceptarlo en una migración.
+            if ((string) $this->params->get('aviso_responsabilidad_aceptado', '0') !== '1') {
+                $app->enqueueMessage(
+                    'VeriFactu: el aviso legal y las condiciones de uso todavía no se han aceptado, así'
+                    . ' que el plugin NO envía nada a la AEAT. Entra en Complementos > Hikashop Verifactu'
+                    . ' plugin, léelo y marca "He leído y acepto el aviso legal y las condiciones de uso".',
+                    'warning'
+                );
+            }
+
+            // v0.34.68: el aviso que ya se mostraba al guardar un pedido con
+            // envío fallido (procesarPedidoVerifactu(), más abajo) depende de
+            // que esa misma petición HTTP termine renderizando una página
+            // completa de Joomla -- y varios de los caminos que disparan el
+            // envío NO lo hacen: el desplegable rápido de estado en el
+            // listado "Compras" y el popup "Información adicional" del
+            // pedido (donde se marca Rectificar por diferencias / Anular
+            // factura) guardan por AJAX, sin recargar la página, así que el
+            // enqueueMessage() de esa petición nunca llega a mostrarse -- y
+            // un pedido nuevo puede cambiar de estado automáticamente desde
+            // el propio checkout, sin ninguna petición de administración de
+            // por medio. En los tres casos el aviso solo quedaba en el log.
+            //
+            // Por eso este aviso NO depende de la petición que falló: se
+            // consulta la tabla de registros (fuente de verdad, la que ya
+            // usa el listado de facturas para el color rojo) y se muestra en
+            // la SIGUIENTE página de administración que se cargue, sea cual
+            // sea, igual que el aviso de aceptación pendiente de más arriba.
+            $this->avisarEnviosFallidosRecientes($app);
+
+            // abre el certificado y consulta la BBDD: en la administración y una vez al día basta
             $marca = rtrim((string) $app->get('tmp_path', JPATH_ROOT . '/tmp'), '/\\') . '/verifactu_certificado_' . date('Ymd');
             if (is_file($marca)) {
                 return;
@@ -1486,6 +1540,161 @@ HTML;
         } catch (\Throwable $e) {
             self::log('Avisos de caducidad: ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
         }
+    }
+
+    /**
+     * v0.34.68: aviso persistente de pedidos cuyo ÚLTIMO intento de envío a
+     * la AEAT (factura, rectificación o anulación) quedó en error o
+     * rechazado. "Último intento" = la fila más reciente de
+     * #__hikashop_verifactu_registro para ese order_id: si se ha reenviado
+     * después con éxito, el pedido deja de aparecer solo, sin necesidad de
+     * marcar nada a mano.
+     *
+     * Limitado a 6 pedidos en el mensaje (con recuento del resto) para que
+     * el aviso no crezca sin límite en una tienda con muchos pendientes.
+     */
+    /**
+     * v0.34.69: limpia las incidencias (excepciones no registradas) de un
+     * pedido tras un intento que SÍ ha llegado a completarse (con éxito o
+     * con un error propio ya reflejado en el registro principal). No falla
+     * el proceso si la tabla no existe todavía (actualización a medias).
+     */
+    private function borrarIncidencias($db, int $orderId): void
+    {
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->delete('#__hikashop_verifactu_incidencias')
+                    ->where('order_id = ' . $orderId)
+            );
+            $db->execute();
+        } catch (\Throwable $e) {
+            self::log('No se pudieron borrar las incidencias del pedido ' . $orderId . ': ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
+        }
+    }
+
+    /**
+     * v0.34.70: estado del ÚLTIMO intento de envío por pedido, para la
+     * columna "VeriFactu" del listado (ver scriptColumnaEstadoListado()) y
+     * para el endpoint AJAX 'estados_pedidos'. Mismo criterio de "último
+     * intento" que avisarEnviosFallidosRecientes(): fila más reciente de
+     * #__hikashop_verifactu_registro por order_id, y una incidencia
+     * (excepción sin fila propia) gana si es más reciente que esa fila o si
+     * no hay ninguna fila todavía.
+     *
+     * @param int[] $orderIds
+     * @return \stdClass propiedades dinámicas order_id => estado (string)
+     */
+    private function estadosPorPedido(array $orderIds): \stdClass
+    {
+        $db = $this->db();
+        $idsSql = implode(',', array_map('intval', $orderIds));
+        $porPedido = [];
+
+        $sub = $db->getQuery(true)
+            ->select(['order_id', 'MAX(id) AS max_id'])
+            ->from('#__hikashop_verifactu_registro')
+            ->where('order_id IN (' . $idsSql . ')')
+            ->group('order_id');
+        $query = $db->getQuery(true)
+            ->select(['r.order_id', 'r.estado_envio', 'r.created'])
+            ->from('#__hikashop_verifactu_registro AS r')
+            ->innerJoin('(' . (string) $sub . ') AS ult ON ult.max_id = r.id');
+        $db->setQuery($query);
+        foreach ($db->loadObjectList() as $fila) {
+            $porPedido[(int) $fila->order_id] = ['estado' => (string) $fila->estado_envio, 'fecha' => (string) $fila->created];
+        }
+
+        try {
+            $query2 = $db->getQuery(true)
+                ->select(['order_id', 'MAX(created) AS ultima'])
+                ->from('#__hikashop_verifactu_incidencias')
+                ->where('order_id IN (' . $idsSql . ')')
+                ->group('order_id');
+            $db->setQuery($query2);
+            foreach ($db->loadObjectList() as $fila) {
+                $orderId = (int) $fila->order_id;
+                $ultima = (string) $fila->ultima;
+                if (!isset($porPedido[$orderId]) || strtotime($ultima) > strtotime($porPedido[$orderId]['fecha'])) {
+                    $porPedido[$orderId] = ['estado' => 'excepcion', 'fecha' => $ultima];
+                }
+            }
+        } catch (\Throwable $e) {
+            // tabla de incidencias todavía sin crear (actualización a medias): no
+            // impide devolver los estados que sí se han podido calcular.
+        }
+
+        $out = new \stdClass();
+        foreach ($porPedido as $orderId => $info) {
+            $out->{(string) $orderId} = $info['estado'];
+        }
+
+        return $out;
+    }
+
+    private function avisarEnviosFallidosRecientes($app): void
+    {
+        $db = $this->db();
+
+        $sub = $db->getQuery(true)
+            ->select(['order_id', 'MAX(id) AS max_id'])
+            ->from('#__hikashop_verifactu_registro')
+            ->group('order_id');
+
+        $query = $db->getQuery(true)
+            ->select(['r.order_id', 'r.invoice_number', 'r.estado_envio'])
+            ->from('#__hikashop_verifactu_registro AS r')
+            ->innerJoin('(' . (string) $sub . ') AS ult ON ult.max_id = r.id')
+            ->where('(r.estado_envio LIKE ' . $db->quote('error\_%') . " ESCAPE '\\' OR r.estado_envio = " . $db->quote('rechazado') . ')')
+            ->order('r.id DESC');
+        $db->setQuery($query);
+        $pendientes = $db->loadObjectList();
+
+        $detalle = [];
+        foreach ($pendientes as $fila) {
+            $numero = trim((string) $fila->invoice_number) !== '' ? $fila->invoice_number : ('pedido ' . $fila->order_id);
+            $detalle[] = $numero . ' (' . $fila->estado_envio . ')';
+        }
+
+        // v0.34.69: incidencias -- intentos que ni siquiera llegaron a
+        // guardar una fila en el registro principal (excepción antes de
+        // tiempo, ver el catch de procesarPedidoVerifactu()). Se listan
+        // aparte porque no tienen invoice_number ni un estado_envio con el
+        // que encajen en la consulta de arriba.
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select(['order_id'])
+                    ->from('#__hikashop_verifactu_incidencias')
+                    ->group('order_id')
+                    ->order('MAX(id) DESC')
+            );
+            $incidencias = $db->loadColumn();
+        } catch (\Throwable $e) {
+            // Tabla todavía no creada (actualización a medias) u otro fallo: no
+            // deja de mostrarse el aviso de los pendientes normales por esto.
+            $incidencias = [];
+        }
+        foreach ($incidencias as $orderId) {
+            $detalle[] = 'pedido ' . $orderId . ' (excepción, ver log)';
+        }
+
+        if (empty($detalle)) {
+            return;
+        }
+
+        $total = count($detalle);
+        $muestra = array_slice($detalle, 0, 6);
+        $resto = $total - count($muestra);
+
+        $app->enqueueMessage(
+            'VeriFactu: el último envío a la AEAT ha fallado o ha sido rechazado en ' . $total
+            . ($total === 1 ? ' pedido: ' : ' pedidos: ') . implode(', ', $muestra)
+            . ($resto > 0 ? ' y ' . $resto . ' más' : '') . '. Revisa el listado de facturas del plugin'
+            . ' (o el pedido correspondiente) para ver el motivo y reenviar. Este aviso desaparece solo'
+            . ' cuando el reenvío se acepta.',
+            'warning'
+        );
     }
 
     /**
@@ -1553,22 +1762,162 @@ HTML;
             }
 
             $body = $app->getBody();
-            if (!is_string($body) || $body === '' || stripos($body, 'verifactu-btn-ayuda-acciones') !== false) {
+            if (!is_string($body) || $body === '') {
                 return;
             }
 
-            $script = self::scriptBotonAyudaAcciones();
-
-            if (stripos($body, '</body>') !== false) {
-                $body = str_ireplace('</body>', $script . '</body>', $body);
-            } else {
-                $body .= $script;
+            $script = '';
+            if (stripos($body, 'verifactu-btn-ayuda-acciones') === false) {
+                $script .= self::scriptBotonAyudaAcciones();
+            }
+            // v0.34.70: columna "VeriFactu" con el estado del último envío,
+            // SOLO en el listado (no en la página de un pedido ni en el
+            // popup "Información adicional" -- ahí no hay tabla de filas que
+            // ampliar). "Por defecto" en el sentido pedido: no depende de
+            // que el usuario la active en ningún selector de columnas de
+            // HikaShop, porque no es una columna de ese selector -- se
+            // añade por JavaScript en cada carga de la página, así que
+            // siempre está.
+            if ($esListado && stripos($body, 'verifactu-col-estado-script') === false) {
+                $script .= self::scriptColumnaEstadoListado();
             }
 
-            $app->setBody($body);
+            if ($script !== '') {
+                $body = (stripos($body, '</body>') !== false)
+                    ? str_ireplace('</body>', $script . '</body>', $body)
+                    : $body . $script;
+                $app->setBody($body);
+            }
         } catch (\Throwable $e) {
-            self::log('Error inyectando el botón "Acciones Veri*Factu" vía onAfterRender: ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
+            self::log('Error inyectando contenido de VeriFactu vía onAfterRender: ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
         }
+    }
+
+    /**
+     * v0.34.70: columna "VeriFactu" en el listado de pedidos (HikaShop ->
+     * Pedidos -> Compras), con el estado del ÚLTIMO envío a la AEAT de cada
+     * pedido visible. No existe un hook fiable de HikaShop para añadir una
+     * columna real al listado (ver el comentario de v0.34.49 sobre el botón
+     * "Acciones Veri*Factu", que tuvo el mismo problema) -- así que, igual
+     * que ese botón, se hace con JavaScript sobre el HTML ya renderizado:
+     *
+     *  1. Localiza las casillas de selección de fila (name="cid[]"), que es
+     *     el patrón estándar de los listados de administración de Joomla
+     *     (también los usa HikaShop) -- de ahí se saca la fila (<tr>) y el
+     *     order_id (value de la casilla) de cada pedido visible en la
+     *     página, sin depender de ninguna URL ni columna concreta.
+     *  2. Añade una celda de cabecera "VeriFactu" y una celda vacía (con un
+     *     indicador de carga) en cada fila encontrada.
+     *  3. Pide de una sola vez (un solo AJAX, no uno por fila) el estado de
+     *     todos los order_id visibles a la tarea 'estados_pedidos', y
+     *     rellena cada celda con la misma insignia de color que ya usa el
+     *     registro de facturación (clases .estado.*).
+     *
+     * Si la página no tiene ninguna casilla cid[] (estructura de listado no
+     * reconocida, ninguna fila visible, vista distinta a la esperada...) no
+     * hace nada: el listado se queda exactamente como sin este script, sin
+     * ningún error visible para el usuario.
+     */
+    private static function scriptColumnaEstadoListado(): string
+    {
+        $ajaxUrl = 'index.php?option=com_ajax&group=hikashop&plugin=verifactu&format=json&task=estados_pedidos';
+
+        return <<<HTML
+<style id="verifactu-col-estado-style">
+.estado{padding:2px 7px;border-radius:10px;font-size:11px;display:inline-block}
+.estado.aceptado,.estado.aceptado_con_errores{background:#e3f6e3;color:#1a7a1a}
+.estado.pendiente,.estado.enviado{background:#fff6d9;color:#8a6d00}
+.estado.excepcion,.estado.rechazado,.estado.error,.estado.error_tecnico,.estado.error_validacion,.estado.error_desglose_vacio,.estado.error_sustitucion_sin_nif,.estado.error_aviso_legal_no_aceptado,.estado.error_simplificada_exenta,.estado.error_concurrencia,.estado.error_id_destinatario,.estado.error_pais_destinatario{background:#fde3e3;color:#a01414}
+</style>
+<script id="verifactu-col-estado-script">
+(function () {
+  function listo(fn) {
+    if (document.readyState !== 'loading') { fn(); } else { document.addEventListener('DOMContentLoaded', fn); }
+  }
+
+  function escapeHtml(s) {
+    return (s === null || s === undefined ? '' : String(s)).replace(/[&<>"']/g, function (c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function unwrap(payload) {
+    if (payload && Array.isArray(payload.data)) { return payload.data[0] || {}; }
+    if (payload && payload.data && typeof payload.data === 'object') { return payload.data; }
+    return payload || {};
+  }
+
+  listo(function () {
+    try {
+      var casillas = document.querySelectorAll('input[type="checkbox"][name="cid[]"]');
+      if (!casillas.length) { return; }
+
+      var filas = [];
+      casillas.forEach(function (casilla) {
+        var id = parseInt(casilla.value, 10);
+        var tr = casilla.closest('tr');
+        if (!id || !tr) { return; }
+        filas.push({ tr: tr, id: id });
+      });
+      if (!filas.length) { return; }
+
+      var tabla = filas[0].tr.closest('table');
+      if (!tabla) { return; }
+
+      var inicios = ['Sustituye', 'Anular', 'Tipo de abono', 'Tipo abono', 'Motivo', 'Rectificar', 'Nueva base', 'Nuevo IVA', 'Nuevo recargo'];
+      tabla.querySelectorAll('th').forEach(function (th) {
+        var t = th.textContent.trim();
+        var coincide = inicios.some(function (i) { return t.indexOf(i) === 0; });
+        if (!coincide) { return; }
+        th.style.width = '90px';
+        th.style.maxWidth = '90px';
+        th.style.whiteSpace = 'normal';
+      });
+
+      var filaCabecera = tabla.tHead ? tabla.tHead.rows[0] : tabla.rows[0];
+      if (filaCabecera && !filaCabecera.querySelector('.verifactu-col-cabecera')) {
+        var esTh = filaCabecera.parentNode && filaCabecera.parentNode.tagName === 'THEAD';
+        var celda = document.createElement(esTh ? 'th' : 'td');
+        celda.className = 'verifactu-col-cabecera';
+        celda.textContent = 'VeriFactu';
+        filaCabecera.appendChild(celda);
+      }
+
+      filas.forEach(function (f) {
+        var td = document.createElement('td');
+        td.className = 'verifactu-col-estado';
+        td.setAttribute('data-verifactu-order', String(f.id));
+        td.innerHTML = '<span class="estado pendiente">&hellip;</span>';
+        f.tr.appendChild(td);
+      });
+
+      var qs = filas.map(function (f) { return 'order_ids[]=' + encodeURIComponent(f.id); }).join('&');
+      fetch('{$ajaxUrl}&' + qs, { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (resp) {
+          var d = unwrap(resp);
+          var estados = (d && d.estados) || {};
+          filas.forEach(function (f) {
+            var td = tabla.querySelector('td[data-verifactu-order="' + f.id + '"]');
+            if (!td) { return; }
+            var estado = estados[f.id] || estados[String(f.id)];
+            td.innerHTML = estado
+              ? '<span class="estado ' + escapeHtml(estado) + '">' + escapeHtml(estado) + '</span>'
+              : '<span class="estado muted" style="background:#eee;color:#888">sin envíos</span>';
+          });
+        })
+        .catch(function () {
+          // no bloquear el listado si el AJAX falla: se deja el indicador de
+          // carga tal cual, el resto del listado sigue funcionando con
+          // normalidad
+        });
+    } catch (e) {
+      // no bloquear el listado por un fallo de este script
+    }
+  });
+})();
+</script>
+HTML;
     }
 
     private function obtenerDatosCertificado(): ?array
@@ -2180,6 +2529,9 @@ JS;
     // etiqueta (el mismo field_realname que sql/install.mysql.utf8.sql le da
     // a cada campo) en vez de por su name/id.
     var ETIQUETAS_RESUMEN = [
+        'Nueva base',
+        'Nuevo IVA %',
+        'Nuevo recargo %',
         'Nueva base imponible',
         'Nuevo tipo de IVA (%)',
         'Nuevo tipo de recargo de equivalencia (%)'
@@ -2638,10 +2990,40 @@ JS;
                 $resultadoParaLog['qr'] = '(' . strlen($resultadoParaLog['qr']) . ' bytes, omitido del log)';
             }
             self::log('Resultado ' . $metodo . ' para pedido ' . $order->order_id . ': ' . json_encode($resultadoParaLog, JSON_INVALID_UTF8_SUBSTITUTE));
+
+            // v0.34.69: se ha llegado hasta aquí sin excepción, así que este
+            // intento ha quedado reflejado en #__hikashop_verifactu_registro
+            // (aceptado o con un estado de error propio) -- eso es lo que ve
+            // avisarEnviosFallidosRecientes(). Cualquier incidencia previa de
+            // ESTE pedido (una excepción de un intento anterior que no llegó
+            // a guardarse) ya no aporta nada por encima de ese registro real:
+            // se retira para no duplicar el aviso.
+            $this->borrarIncidencias($db, (int) $order->order_id);
         } catch (\Throwable $e) {
             // No dejar que un fallo en VeriFactu bloquee el cambio de estado del pedido:
             // se registra el error y queda para revisión/reintento manual.
             self::log('EXCEPCIÓN en pedido ' . $order->order_id . ': ' . $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine(), \Joomla\CMS\Log\Log::ERROR);
+
+            // v0.34.69: esta excepción ha cortado el envío ANTES de que
+            // registrarFactura()/rectificarPorDiferencias()/anularFactura()
+            // pudieran guardar una fila en #__hikashop_verifactu_registro, así
+            // que sin esto no queda ningún rastro visible para el
+            // administrador -- solo el log de Joomla, que es precisamente lo
+            // que se reportó como problema. Se guarda en la tabla aparte de
+            // incidencias (no en el registro principal, que exige columnas
+            // NOT NULL -- número de factura, fecha, NIF emisor -- que en este
+            // punto pueden no existir todavía) para que avisarEnviosFallidosRecientes()
+            // la recoja igualmente.
+            try {
+                $db->insertObject('#__hikashop_verifactu_incidencias', (object) [
+                    'order_id' => (int) $order->order_id,
+                    'mensaje' => mb_substr($e->getMessage(), 0, 1000),
+                    'created' => date('Y-m-d H:i:s'),
+                ]);
+            } catch (\Throwable $e2) {
+                self::log('No se pudo guardar la incidencia del pedido ' . $order->order_id . ': ' . $e2->getMessage(), \Joomla\CMS\Log\Log::WARNING);
+            }
+
             return;
         }
 

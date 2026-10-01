@@ -1,6 +1,6 @@
 # AVISO LEGAL, CONDICIONES DE USO Y EXCLUSIÓN DE GARANTÍA Y RESPONSABILIDAD
 
-**HikaShop VeriFactu v0.34.65**
+**HikaShop VeriFactu v0.34.70**
 Licencia: **GNU General Public License v3.0 (GPLv3)**
 Última actualización: 28 de septiembre de 2026
 
@@ -246,7 +246,7 @@ La instalación o utilización del software implica la aceptación de estas cond
 
 ---
 
-**HikaShop VeriFactu v0.34.65**
+**HikaShop VeriFactu v0.34.70**
 
 **Copyright © 2026 Custom**
 

@@ -12,7 +12,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Rectificar por diferencias (R1)',
+    'Rectificar R1',
     'verifactu_rectificar_diferencias',
     'singledropdown',
     'No::No::0
@@ -39,7 +39,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Nueva base imponible',
+    'Nueva base',
     'verifactu_nueva_base_imponible',
     'text',
     '',
@@ -65,7 +65,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Nuevo tipo de IVA (%)',
+    'Nuevo IVA %',
     'verifactu_nuevo_tipo_iva',
     'text',
     '',
@@ -91,7 +91,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Nuevo tipo de recargo de equivalencia (%)',
+    'Nuevo recargo %',
     'verifactu_nuevo_tipo_recargo',
     'text',
     '',

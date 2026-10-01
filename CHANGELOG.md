@@ -1,5 +1,98 @@
 # Changelog
 
+## 0.34.73
+
+Nombres más cortos para 3 campos personalizados de pedido: "Tipo abono",
+"Sustituye F2 (F3)" y "Anular factura". Al actualizar, solo se renombran los
+campos que aún tienen el nombre original (si se cambiaron a mano, se
+respeta). Mensajes de error, tabla de ayuda, textos de configuración y
+manual actualizados con los nombres nuevos.
+
+## 0.34.72
+
+"Comentario del abono" tampoco se muestra por defecto en el "Listado del
+Back-end" (instalaciones nuevas y, una sola vez, al actualizar). Manual
+actualizado: nombres cortos de los campos, campos que no se muestran por
+defecto en el listado y estrechamiento de las cabeceras.
+
+## 0.34.71
+
+Nombres más cortos para 5 campos personalizados de pedido: "Motivo anulación",
+"Rectificar R1", "Nueva base", "Nuevo IVA %" y "Nuevo recargo %". Al
+actualizar, solo se renombran los campos que aún tienen el nombre original
+(si se cambiaron a mano, se respeta). Los 4 campos "Motivo anulación",
+"Nueva base", "Nuevo IVA %" y "Nuevo recargo %" dejan de mostrarse por
+defecto en el listado de pedidos del back-end ("Listado del Back-end" = No,
+tanto en instalaciones nuevas como, una sola vez, al actualizar).
+
+En el listado de pedidos, las cabeceras de los campos de VeriFactu se
+estrechan a 90 px para que el título se parta en varias líneas. Mensajes,
+tabla de ayuda y manual actualizados con los nombres nuevos.
+
+## 0.34.70
+
+Columna "VeriFactu" nueva en el listado de pedidos de HikaShop (Pedidos >
+Compras), con el estado del último envío a la AEAT de cada pedido (misma
+insignia de color que el registro de facturación). Se muestra siempre, sin
+selector de columnas de por medio: HikaShop no ofrece un hook fiable para
+añadir una columna real al listado (mismo problema que ya tuvo el botón
+"Acciones Veri*Factu" de la v0.34.46-0.34.49), así que se añade por
+JavaScript sobre el HTML ya renderizado, localizando las filas por su
+casilla de selección (cid[]), el patrón estándar de los listados de
+administración de Joomla.
+
+Nueva tarea AJAX 'estados_pedidos' (un solo envío, con todos los order_id
+visibles en la página) y el método estadosPorPedido(), que devuelven el
+estado del último intento -- incluida una incidencia (excepción de la
+v0.34.69) si es más reciente que el último registro guardado, mostrada como
+"excepcion".
+
+No se ha podido verificar contra un HikaShop real: si la columna no aparece
+o aparece mal encajada en el listado, es la clase de ajuste que ya hizo
+falta con el botón "Acciones Veri*Factu" en su momento -- lo más rápido es
+una captura de pantalla del listado para ajustar los selectores.
+
+## 0.34.68
+
+El aviso de envío fallido que ya se mostraba al guardar un pedido
+(procesarPedidoVerifactu()) depende de que esa misma petición termine
+renderizando una página completa de Joomla. Varios de los caminos que
+disparan el envío no lo hacen: el desplegable rápido de estado del listado
+"Compras" y el popup "Información adicional" del pedido guardan por AJAX, y
+un pedido puede cambiar de estado automáticamente desde el checkout, sin
+ninguna petición de administración de por medio. En los tres casos el aviso
+solo quedaba en el log, tal y como se ha confirmado en producción.
+
+Se añade avisarEnviosFallidosRecientes(), en la misma línea que el aviso de
+aceptación pendiente de la v0.34.67: en vez de depender de la petición que
+falló, consulta la tabla de registros (la misma fuente que ya usa el
+listado de facturas para el color rojo) y muestra un aviso en la SIGUIENTE
+página de administración que se cargue, listando los pedidos cuyo último
+intento de envío quedó en error o rechazado. Desaparece solo cuando ese
+pedido se reenvía con éxito, sin marcar nada a mano.
+
+## 0.34.67
+
+Un comentario de revisión sobre `migrarAceptacionAvisoLegal()` (el
+comentario de v0.34.7 sobre las 8 facturas 26-0237 a 26-0244) señalaba un
+problema real: al actualizar, el plugin daba por aceptado el aviso legal en
+instalaciones que nunca habían tenido la casilla delante (las que
+instalaron el plugin antes de que existiera la v0.34.7), dejando registrada
+una aceptación que nadie dio.
+
+Se cambia de estrategia. Ya NO se auto-acepta el aviso legal en una
+actualización: el parámetro se deja como esté. Mientras no valga "1":
+
+- El envío a la AEAT sigue bloqueado (sin cambios; ya existía desde v0.34.7).
+- Además del aviso que ya se mostraba al guardar un pedido, ahora se
+  muestra un aviso persistente en TODA la administración (cada página, no
+  solo pedidos), para que no pase desapercibido como antes de la v0.34.7.
+
+Con esto la aceptación sigue siendo real y no se repite el caso de las 8
+facturas sin dar por aceptado algo que no se aceptó. Se actualiza también el
+manual (apartado 15.1) explicando el aviso persistente y que una
+actualización ya no auto-acepta.
+
 ## 0.34.66
 
 Correcciones propuestas por HikaShop sobre la 0.34.65.

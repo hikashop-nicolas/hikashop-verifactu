@@ -9,7 +9,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Tipo de abono',
+    'Tipo abono',
     'verifactu_tipo_abono',
     'singledropdown',
     'Factura::Factura::0

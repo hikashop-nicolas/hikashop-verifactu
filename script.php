@@ -152,6 +152,23 @@ class PlgHikashopVerifactuInstallerScript
             PRIMARY KEY (`id`),
             UNIQUE KEY `idx_huella_umbral` (`huella`, `umbral_meses`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        ,
+        // v0.34.69: incidencias de envío que NUNCA llegaron a
+        // #__hikashop_verifactu_registro porque una excepción (red, PHP,
+        // certificado corrupto en tiempo de ejecución, etc.) cortó el envío
+        // ANTES de que registrarFactura()/rectificarPorDiferencias()/
+        // anularFactura() pudieran guardar una fila -- ver el catch(\Throwable)
+        // de Verifactu::procesarPedidoVerifactu(). Sin esta tabla esos casos
+        // no dejaban ningún rastro visible para el administrador, solo el
+        // log de Joomla.
+        'hikashop_verifactu_incidencias' => "CREATE TABLE IF NOT EXISTS `%s` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `order_id` INT UNSIGNED NOT NULL,
+            `mensaje` TEXT NOT NULL,
+            `created` DATETIME NOT NULL,
+            PRIMARY KEY (`id`),
+            KEY `idx_order_id` (`order_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     ];
 
     /**
@@ -183,13 +200,22 @@ class PlgHikashopVerifactuInstallerScript
         }
 
         if ($type === 'update') {
-            $this->migrarAceptacionAvisoLegal();
+            $this->avisarAceptacionAvisoLegalPendiente();
             $this->migrarOpcionCancelacionTipoAbono();
             // una sola vez: después, las pantallas que el comerciante elija se respetan
             if ($this->versionAnterior === '' || version_compare($this->versionAnterior, '0.34.54', '<')) {
                 $this->migrarPantallasCamposAbono();
             }
             $this->migrarPlaceholderComentarioAbono();
+            if ($this->versionAnterior === '' || version_compare($this->versionAnterior, '0.34.71', '<')) {
+                $this->migrarNombresCortosCampos();
+            }
+            if ($this->versionAnterior === '' || version_compare($this->versionAnterior, '0.34.72', '<')) {
+                $this->ocultarComentarioAbonoEnListado();
+            }
+            if ($this->versionAnterior === '' || version_compare($this->versionAnterior, '0.34.73', '<')) {
+                $this->renombrarCamposAbonoCortos();
+            }
         }
 
         $this->installLayout($parent);
@@ -366,90 +392,77 @@ class PlgHikashopVerifactuInstallerScript
      * vuelve a guardar el formulario de configuración del plugin -- el JSON
      * de parámetros ya guardado simplemente no tiene esa clave, así que en
      * tiempo de ejecución $params->get() devuelve el valor por defecto ("0")
-     * y el plugin se queda bloqueando pedidos en silencio hasta que alguien
-     * entra a la configuración a mano. Resultado real: 8 facturas (26-0237 a
-     * 26-0244) numeradas con normalidad por HikaShop pero NUNCA enviadas a
-     * la AEAT ni registradas por el plugin, sin ningún aviso visible salvo
-     * el log de Joomla.
+     * y el plugin se queda bloqueando pedidos hasta que alguien entra a la
+     * configuración a mano. Resultado real: 8 facturas (26-0237 a 26-0244)
+     * numeradas con normalidad por HikaShop pero NUNCA enviadas a la AEAT ni
+     * registradas por el plugin.
      *
-     * Para una tienda que YA tenía el plugin instalado y en producción, es
-     * razonable asumir que la aceptación ya se dio en su momento (cuando se
-     * configuró por primera vez) -- así que en una actualización se
-     * completa automáticamente esa clave a "1" si no existía todavía,
-     * dejando el comportamiento exactamente como antes de la 0.34.7. Una
-     * instalación NUEVA (type=install/discover_install) no pasa por aquí:
-     * ahí sí debe verse el aviso y marcarse a mano antes de que el plugin
-     * haga nada, que es la protección que se pretendía añadir.
+     * v0.34.7-0.34.66 "resolvían" esto completando automáticamente esa clave
+     * a "1" en una actualización, asumiendo que la aceptación ya se había
+     * dado cuando se configuró el plugin por primera vez. Esa suposición no
+     * se sostiene para una tienda que instaló el plugin ANTES de que la
+     * v0.34.7 existiera (el caso exacto de las 8 facturas): esas tiendas
+     * nunca tuvieron la casilla delante, así que auto-marcarlo dejaba
+     * registrada una aceptación que nadie dio. El guard existe para dejar
+     * constancia real de que un humano ha leído el aviso legal (ver
+     * DISCLAIMER.md y verifactu.php::buildConditionsHtml()); falsearlo en
+     * una migración automática vacía esa garantía precisamente para las
+     * instalaciones más antiguas, que son las que más lo necesitan.
+     *
+     * v0.34.67 cambia de estrategia: en vez de auto-aceptar, se deja el
+     * parámetro como esté (no se toca) y, mientras no valga "1", se muestra
+     * un aviso PERSISTENTE en toda la administración -- ver
+     * avisarAceptacionAvisoLegalPendiente() e Verifactu::onAfterInitialise().
+     * Antes de la v0.34.7 el problema era que el bloqueo era invisible salvo
+     * en el log de Joomla; ahora, además de ese bloqueo (con el mensaje que
+     * ya se muestra al guardar el pedido, ver Verifactu::procesarPedidoVerifactu()),
+     * hay un aviso que no depende de tocar ningún pedido para verse. Así se
+     * evita repetir el caso de las 8 facturas sin necesidad de dar por
+     * aceptado algo que nadie ha aceptado.
      */
-    private function migrarAceptacionAvisoLegal(): void
+    private function avisarAceptacionAvisoLegalPendiente(): void
     {
         try {
             $db = \Joomla\CMS\Factory::getContainer()->get('DatabaseDriver');
 
             $query = $db->getQuery(true)
-                ->select(['extension_id', 'params'])
+                ->select(['params'])
                 ->from('#__extensions')
                 ->where('type = ' . $db->quote('plugin'))
                 ->where('element = ' . $db->quote('verifactu'))
                 ->where('folder = ' . $db->quote('hikashop'));
             $db->setQuery($query);
-            $row = $db->loadObject();
+            $paramsJson = $db->loadResult();
 
-            if (!$row) {
-                return;
-            }
-
-            $params = json_decode((string) ($row->params ?? '{}'), true);
+            $params = json_decode((string) ($paramsJson ?? '{}'), true);
             if (!is_array($params)) {
                 $params = [];
             }
 
-            if (array_key_exists('aviso_responsabilidad_aceptado', $params)) {
-                // Ya existe (instalación ya actualizada antes, o vuelta a
-                // instalar sobre una configuración existente) -- no se toca,
-                // se respeta lo que haya decidido el propio usuario.
+            if ((string) ($params['aviso_responsabilidad_aceptado'] ?? '0') === '1') {
                 return;
             }
 
-            $params['aviso_responsabilidad_aceptado'] = '1';
-
-            $update = $db->getQuery(true)
-                ->update('#__extensions')
-                ->set('params = ' . $db->quote(json_encode($params)))
-                ->where('extension_id = ' . (int) $row->extension_id);
-            $db->setQuery($update);
-            $db->execute();
-
             \Joomla\CMS\Factory::getApplication()->enqueueMessage(
-                'VeriFactu: se ha mantenido activo el envío a la AEAT tras la actualización (instalación ya existente). Puedes revisar el aviso legal completo desde la configuración del plugin cuando quieras.',
-                'message'
+                'VeriFactu: el aviso legal y las condiciones de uso todavía no se han aceptado en esta'
+                . ' instalación (o esta es una actualización que no lo tenía guardado). Mientras tanto,'
+                . ' el plugin NO envía nada a la AEAT -- ni facturas, ni rectificativas, ni anulaciones --'
+                . ' aunque los pedidos se numeren con normalidad en HikaShop. Entra en Complementos >'
+                . ' Hikashop Verifactu plugin, léelo y marca "He leído y acepto el aviso legal y las'
+                . ' condiciones de uso" para que el envío se reanude. Este aviso se repetirá en cada'
+                . ' página de la administración hasta que se acepte.',
+                'warning'
             );
         } catch (\Throwable $e) {
             \Joomla\CMS\Factory::getApplication()->enqueueMessage(
-                'VeriFactu: no se pudo comprobar/migrar la aceptación del aviso legal (' . $e->getMessage() . '). Si el envío a la AEAT deja de funcionar tras esta actualización, entra en la configuración del plugin y marca "He leído y acepto el aviso legal y las condiciones de uso".',
+                'VeriFactu: no se pudo comprobar la aceptación del aviso legal (' . $e->getMessage() . ').'
+                . ' Si el envío a la AEAT no funciona, entra en la configuración del plugin y marca'
+                . ' "He leído y acepto el aviso legal y las condiciones de uso".',
                 'warning'
             );
         }
     }
 
-    /**
-     * v0.34.24: auditoría de seguridad, punto "Rectificativas" (prioridad
-     * 🔴). Retira la opción 'Cancelación' del desplegable "Tipo de abono"
-     * en instalaciones que ya la tenían sembrada por una versión anterior
-     * (ver sql/install.mysql.utf8.sql y el comentario en
-     * VerifactuLibraryBridge::mapTipoAbono() para el porqué: coexistía con
-     * el campo separado "Anular factura" y confundía ambos mecanismos).
-     *
-     * Solo toca el campo con field_namekey 'verifactu_tipo_abono' (el
-     * nombre por defecto que crea la instalación de este plugin); si el
-     * usuario ha renombrado el campo interno de HikaShop a otra clave,
-     * esta migración no lo alcanza -- caso fuera de alcance de una
-     * migración automática segura, y se avisa en el log si no se
-     * encuentra el campo.
-     *
-     * Idempotente: si la línea ya no está (instalación nueva desde
-     * v0.34.24, o esta migración ya se aplicó antes), no hace nada.
-     */
     private function migrarOpcionCancelacionTipoAbono(): void
     {
         try {
@@ -499,6 +512,124 @@ class PlgHikashopVerifactuInstallerScript
         }
     }
 
+
+    /**
+     * v0.34.71: nombres cortos para 5 campos personalizados y retirada de 4 de
+     * ellos del "Listado del Back-end" por defecto. Solo se renombra un campo
+     * si todavía tiene el nombre original de VeriFactu (si el comerciante ya lo
+     * cambió a mano, se respeta). Se ejecuta una sola vez, al pasar de una
+     * versión anterior a la 0.34.71.
+     */
+    private function migrarNombresCortosCampos(): void
+    {
+        static $campos = [
+            'verifactu_motivo_anulacion' => ['Motivo de la anulación', 'Motivo anulación', true],
+            'verifactu_rectificar_diferencias' => ['Rectificar por diferencias (R1)', 'Rectificar R1', false],
+            'verifactu_nueva_base_imponible' => ['Nueva base imponible', 'Nueva base', true],
+            'verifactu_nuevo_tipo_iva' => ['Nuevo tipo de IVA (%)', 'Nuevo IVA %', true],
+            'verifactu_nuevo_tipo_recargo' => ['Nuevo tipo de recargo de equivalencia (%)', 'Nuevo recargo %', true],
+        ];
+
+        try {
+            $db = \Joomla\CMS\Factory::getContainer()->get('DatabaseDriver');
+
+            foreach ($campos as $namekey => [$viejo, $nuevo, $quitarListado]) {
+                $query = $db->getQuery(true)
+                    ->select(['field_id', 'field_realname'])
+                    ->from('#__hikashop_field')
+                    ->where('field_table = ' . $db->quote('order'))
+                    ->where('field_namekey = ' . $db->quote($namekey));
+                $db->setQuery($query);
+                $fila = $db->loadObject();
+                if (!$fila) {
+                    continue;
+                }
+
+                $update = $db->getQuery(true)->update('#__hikashop_field')->where('field_id = ' . (int) $fila->field_id);
+                $cambia = false;
+
+                if ((string) $fila->field_realname === $viejo) {
+                    $update->set('field_realname = ' . $db->quote($nuevo));
+                    $cambia = true;
+                }
+                if ($quitarListado) {
+                    $update->set('field_backend_listing = 0');
+                    $cambia = true;
+                }
+                if ($cambia) {
+                    $db->setQuery($update);
+                    $db->execute();
+                }
+            }
+        } catch (\Throwable $e) {
+            \Joomla\CMS\Factory::getApplication()->enqueueMessage(
+                'VeriFactu: no se pudieron acortar los nombres de los campos personalizados (' . $e->getMessage() . '). Puedes cambiarlos a mano desde Componentes > HikaShop > Campos personalizados.',
+                'warning'
+            );
+        }
+    }
+
+
+    /**
+     * v0.34.72: "Comentario del abono" tampoco se muestra por defecto en el
+     * "Listado del Back-end" (igual que Motivo anulación, Nueva base, Nuevo IVA %
+     * y Nuevo recargo %). Una sola vez, al pasar de una versión anterior a la
+     * 0.34.72; después, lo que el comerciante elija se respeta.
+     */
+    private function ocultarComentarioAbonoEnListado(): void
+    {
+        try {
+            $db = \Joomla\CMS\Factory::getContainer()->get('DatabaseDriver');
+            $update = $db->getQuery(true)
+                ->update('#__hikashop_field')
+                ->set('field_backend_listing = 0')
+                ->where('field_table = ' . $db->quote('order'))
+                ->where('field_namekey = ' . $db->quote('verifactu_comentario_abono'));
+            $db->setQuery($update);
+            $db->execute();
+        } catch (\Throwable $e) {
+            \Joomla\CMS\Factory::getApplication()->enqueueMessage(
+                'VeriFactu: no se pudo ocultar "Comentario del abono" del listado del back-end (' . $e->getMessage() . '). Puedes hacerlo a mano desde Componentes > HikaShop > Campos personalizados.',
+                'warning'
+            );
+        }
+    }
+
+    /**
+     * v0.34.73: nombres cortos para "Tipo de abono" (-> Tipo abono), "Sustituye a
+     * factura simplificada (F3)" (-> Sustituye F2 (F3)) y "Anular factura (error
+     * de emisión)" (-> Anular factura). Solo se renombra un campo si todavía tiene
+     * el nombre original de VeriFactu; si el comerciante lo cambió a mano, se
+     * respeta. Una sola vez, al pasar de una versión anterior a la 0.34.73.
+     */
+    private function renombrarCamposAbonoCortos(): void
+    {
+        static $campos = [
+            'verifactu_tipo_abono' => ['Tipo de abono', 'Tipo abono'],
+            'verifactu_sustituye_simplificada' => ['Sustituye a factura simplificada (F3)', 'Sustituye F2 (F3)'],
+            'verifactu_anular_factura' => ['Anular factura (error de emisión)', 'Anular factura'],
+        ];
+
+        try {
+            $db = \Joomla\CMS\Factory::getContainer()->get('DatabaseDriver');
+
+            foreach ($campos as $namekey => [$viejo, $nuevo]) {
+                $update = $db->getQuery(true)
+                    ->update('#__hikashop_field')
+                    ->set('field_realname = ' . $db->quote($nuevo))
+                    ->where('field_table = ' . $db->quote('order'))
+                    ->where('field_namekey = ' . $db->quote($namekey))
+                    ->where('field_realname = ' . $db->quote($viejo));
+                $db->setQuery($update);
+                $db->execute();
+            }
+        } catch (\Throwable $e) {
+            \Joomla\CMS\Factory::getApplication()->enqueueMessage(
+                'VeriFactu: no se pudieron acortar los nombres de los campos Tipo de abono, Sustituye a factura simplificada y Anular factura (' . $e->getMessage() . '). Puedes cambiarlos a mano desde Componentes > HikaShop > Campos personalizados.',
+                'warning'
+            );
+        }
+    }
 
     /**
      * v0.34.54: los 9 campos personalizados de VeriFactu (Tipo de abono,

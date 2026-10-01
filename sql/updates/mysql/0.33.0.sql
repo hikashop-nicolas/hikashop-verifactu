@@ -13,7 +13,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Sustituye a factura simplificada (F3)',
+    'Sustituye F2 (F3)',
     'verifactu_sustituye_simplificada',
     'yesno',
     '0',

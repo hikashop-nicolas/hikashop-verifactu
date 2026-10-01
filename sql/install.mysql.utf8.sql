@@ -101,7 +101,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Tipo de abono',
+    'Tipo abono',
     'verifactu_tipo_abono',
     'singledropdown',
     'Factura::Factura::0
@@ -137,7 +137,7 @@ SELECT
     '',
     1, 2,
     'a:6:{s:12:"errormessage";s:0:"";s:4:"cols";s:0:"";s:4:"rows";s:0:"";s:4:"size";s:0:"";s:6:"format";s:0:"";s:11:"placeholder";s:35:"Indicar número de factura original";}',
-    0, 0, 1, 0, '', 1, 'all', 'all', 0, ';front_order=0;invoice=0;back_shipping_invoice=0;order_edit=1;order_form=1;mail_order_notif=0;mail_status_notif=0;mail_order_creation=0;mail_admin_notif=0;mail_payment_notif=0;'
+    0, 0, 1, 0, '', 0, 'all', 'all', 0, ';front_order=0;invoice=0;back_shipping_invoice=0;order_edit=1;order_form=1;mail_order_notif=0;mail_status_notif=0;mail_order_creation=0;mail_admin_notif=0;mail_payment_notif=0;'
 FROM DUAL
 WHERE NOT EXISTS (
     SELECT 1 FROM `#__hikashop_field`
@@ -155,7 +155,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Sustituye a factura simplificada (F3)',
+    'Sustituye F2 (F3)',
     'verifactu_sustituye_simplificada',
     'singledropdown',
     'No::No::0
@@ -184,7 +184,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Anular factura (error de emisión)',
+    'Anular factura',
     'verifactu_anular_factura',
     'singledropdown',
     'No::No::0
@@ -211,13 +211,13 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Motivo de la anulación',
+    'Motivo anulación',
     'verifactu_motivo_anulacion',
     'textarea',
     '',
     1, 5,
     'a:5:{s:12:"errormessage";s:0:"";s:4:"cols";s:0:"";s:4:"rows";s:0:"";s:4:"size";s:0:"";s:6:"format";s:0:"";}',
-    0, 0, 1, 0, '', 1, 'all', 'all', 0,
+    0, 0, 1, 0, '', 0, 'all', 'all', 0,
     COALESCE(
         (SELECT field_display FROM `#__hikashop_field` WHERE field_table = 'order' AND field_namekey = 'verifactu_sustituye_simplificada' LIMIT 1),
         ';front_order=0;invoice=0;back_shipping_invoice=0;order_edit=1;order_form=1;mail_order_notif=0;mail_status_notif=0;mail_order_creation=0;mail_admin_notif=0;mail_payment_notif=0;'
@@ -243,7 +243,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Rectificar por diferencias (R1)',
+    'Rectificar R1',
     'verifactu_rectificar_diferencias',
     'singledropdown',
     'No::No::0
@@ -270,13 +270,13 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Nueva base imponible',
+    'Nueva base',
     'verifactu_nueva_base_imponible',
     'text',
     '',
     1, 7,
     'a:5:{s:12:"errormessage";s:0:"";s:4:"cols";s:0:"";s:4:"rows";s:0:"";s:4:"size";s:0:"";s:6:"format";s:0:"";}',
-    0, 0, 1, 0, '', 1, 'all', 'all', 0,
+    0, 0, 1, 0, '', 0, 'all', 'all', 0,
     COALESCE(
         (SELECT field_display FROM `#__hikashop_field` WHERE field_table = 'order' AND field_namekey = 'verifactu_sustituye_simplificada' LIMIT 1),
         ';front_order=0;invoice=0;back_shipping_invoice=0;order_edit=1;order_form=1;mail_order_notif=0;mail_status_notif=0;mail_order_creation=0;mail_admin_notif=0;mail_payment_notif=0;'
@@ -296,13 +296,13 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Nuevo tipo de IVA (%)',
+    'Nuevo IVA %',
     'verifactu_nuevo_tipo_iva',
     'text',
     '',
     1, 8,
     'a:5:{s:12:"errormessage";s:0:"";s:4:"cols";s:0:"";s:4:"rows";s:0:"";s:4:"size";s:0:"";s:6:"format";s:0:"";}',
-    0, 0, 1, 0, '', 1, 'all', 'all', 0,
+    0, 0, 1, 0, '', 0, 'all', 'all', 0,
     COALESCE(
         (SELECT field_display FROM `#__hikashop_field` WHERE field_table = 'order' AND field_namekey = 'verifactu_sustituye_simplificada' LIMIT 1),
         ';front_order=0;invoice=0;back_shipping_invoice=0;order_edit=1;order_form=1;mail_order_notif=0;mail_status_notif=0;mail_order_creation=0;mail_admin_notif=0;mail_payment_notif=0;'
@@ -322,13 +322,13 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Nuevo tipo de recargo de equivalencia (%)',
+    'Nuevo recargo %',
     'verifactu_nuevo_tipo_recargo',
     'text',
     '',
     1, 9,
     'a:5:{s:12:"errormessage";s:0:"";s:4:"cols";s:0:"";s:4:"rows";s:0:"";s:4:"size";s:0:"";s:6:"format";s:0:"";}',
-    0, 0, 1, 0, '', 1, 'all', 'all', 0,
+    0, 0, 1, 0, '', 0, 'all', 'all', 0,
     COALESCE(
         (SELECT field_display FROM `#__hikashop_field` WHERE field_table = 'order' AND field_namekey = 'verifactu_sustituye_simplificada' LIMIT 1),
         ';front_order=0;invoice=0;back_shipping_invoice=0;order_edit=1;order_form=1;mail_order_notif=0;mail_status_notif=0;mail_order_creation=0;mail_admin_notif=0;mail_payment_notif=0;'

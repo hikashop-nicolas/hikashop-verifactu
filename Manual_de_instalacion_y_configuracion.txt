@@ -1,10 +1,10 @@
 Manual de instalación y configuración
 
-PLG_HIKASHOP_VERIFACTU v0.34.66
+PLG_HIKASHOP_VERIFACTU v0.34.73
 
 1. Introducción
 
-Este manual explica la instalación y configuración del plugin PLG_HIKASHOP_VERIFACTU v0.34.66 para
+Este manual explica la instalación y configuración del plugin PLG_HIKASHOP_VERIFACTU v0.34.73 para
 Joomla + HikaShop.
 
 El plugin integra HikaShop con el sistema VERI*FACTU de la Agencia Estatal de Administración
@@ -141,7 +141,7 @@ En el administrador de Joomla:
 
 Extensiones → Gestionar → Instalar
 
-1.  Selecciona el archivo ZIP de PLG_HIKASHOP_VERIFACTU v0.34.66.
+1.  Selecciona el archivo ZIP de PLG_HIKASHOP_VERIFACTU v0.34.73.
 
 2.  Sube el paquete.
 
@@ -150,7 +150,7 @@ Extensiones → Gestionar → Instalar
 No es necesario ejecutar manualmente comandos Composer ni modificar archivos del plugin después de
 la instalación.
 
-Importante: la versión v0.34.66 debe instalarse utilizando el paquete proporcionado. No deben
+Importante: la versión v0.34.73 debe instalarse utilizando el paquete proporcionado. No deben
 aplicarse manualmente los parches de versiones anteriores descritos en manuales antiguos.
 
 5. Configurar el plugin
@@ -221,7 +221,7 @@ por menor a consumidor final (B2C).
 
 6. Información y control de la caducidad del certificado
 
-La versión v0.34.66 incorpora información sobre la fecha de caducidad del certificado digital.
+La versión v0.34.73 incorpora información sobre la fecha de caducidad del certificado digital.
 
 Una vez que el certificado es reconocido correctamente, el plugin puede mostrar su fecha de
 caducidad dentro de la configuración.
@@ -272,12 +272,12 @@ anulaciones.
 
 Los nueve campos utilizados son:
 
-8.1. Tipo de abono
+8.1. Tipo abono
 
   ---------------------------------------------------------------------------------------------------
   Configuración                                     Valor
   ------------------------------------------------- -------------------------------------------------
-  Etiqueta                                          Tipo de abono
+  Etiqueta                                          Tipo abono
 
   Nombre de columna                                 verifactu_tipo_abono
 
@@ -328,12 +328,12 @@ En un pedido de abono, escriba aquí el número de la factura original: el plugi
 registro y lo informa a la AEAT como factura rectificada. Si no lo encuentra, solo usa la factura
 inmediatamente anterior cuando es del mismo cliente; en caso contrario no informa ninguna.
 
-8.3. Sustituye a factura simplificada (F3)
+8.3. Sustituye F2 (F3)
 
   ---------------------------------------------------------------------------------------------------
   Configuración                                     Valor
   ------------------------------------------------- -------------------------------------------------
-  Etiqueta                                          Sustituye a factura simplificada (F3)
+  Etiqueta                                          Sustituye F2 (F3)
 
   Nombre de columna                                 verifactu_sustituye_simplificada
 
@@ -354,12 +354,12 @@ Se selecciona Sí en el pedido cuando la operación tiene que generar una F3 a p
 simplificada (F2) aceptada previamente. Antes de seleccionar Sí hay que modificar los datos del
 cliente y guardarlos.
 
-8.4. Anular factura (error de emisión)
+8.4. Anular factura
 
   ---------------------------------------------------------------------------------------------------
   Configuración                                     Valor
   ------------------------------------------------- -------------------------------------------------
-  Etiqueta                                          Anular factura (error de emisión)
+  Etiqueta                                          Anular factura
 
   Nombre de columna                                 verifactu_anular_factura
 
@@ -379,12 +379,12 @@ Las opciones son:
 Se selecciona Sí en el pedido que contiene una factura emitida por error. El resultado es un
 Registro de Anulación, no una factura rectificativa.
 
-8.5. Motivo de la anulación
+8.5. Motivo anulación
 
   ---------------------------------------------------------------------------------------------------
   Configuración                                     Valor
   ------------------------------------------------- -------------------------------------------------
-  Etiqueta                                          Motivo de la anulación
+  Etiqueta                                          Motivo anulación
 
   Nombre de columna                                 verifactu_motivo_anulacion
 
@@ -394,15 +394,15 @@ Registro de Anulación, no una factura rectificativa.
   ---------------------------------------------------------------------------------------------------
 
 Este campo permite indicar el motivo de la anulación de la factura. Se utiliza junto con el campo
-Anular factura (error de emisión) y su contenido forma parte de la información del Registro de
+Anular factura y su contenido forma parte de la información del Registro de
 Anulación.
 
-8.6. Rectificar por diferencias (R1)
+8.6. Rectificar R1
 
   ---------------------------------------------------------------------------------------------------
   Configuración                                     Valor
   ------------------------------------------------- -------------------------------------------------
-  Etiqueta                                          Rectificar por diferencias (R1)
+  Etiqueta                                          Rectificar R1
 
   Nombre de columna                                 verifactu_rectificar_diferencias
 
@@ -420,14 +420,14 @@ Las opciones son:
 -   Sí
 
 Se selecciona Sí en un pedido ya facturado cuando se quiere rectificar por diferencias sin crear un
-pedido de abono con importe negativo. Funciona junto con el campo Nueva base imponible.
+pedido de abono con importe negativo. Funciona junto con el campo Nueva base.
 
-8.7. Nueva base imponible
+8.7. Nueva base
 
   ---------------------------------------------------------------------------------------------------
   Configuración                                     Valor
   ------------------------------------------------- -------------------------------------------------
-  Etiqueta                                          Nueva base imponible
+  Etiqueta                                          Nueva base
 
   Nombre de columna                                 verifactu_nueva_base_imponible
 
@@ -436,15 +436,15 @@ pedido de abono con importe negativo. Funciona junto con el campo Nueva base imp
   Tipo                                              Texto
   ---------------------------------------------------------------------------------------------------
 
-Se utiliza con Rectificar por diferencias (R1) = Sí. Debe contener la base imponible final correcta,
+Se utiliza con Rectificar R1 = Sí. Debe contener la base imponible final correcta,
 no la diferencia: el plugin calcula automáticamente la diferencia con la factura original.
 
-8.8. Nuevo tipo de IVA (%)
+8.8. Nuevo IVA %
 
   ---------------------------------------------------------------------------------------------------
   Configuración                                     Valor
   ------------------------------------------------- -------------------------------------------------
-  Etiqueta                                          Nuevo tipo de IVA (%)
+  Etiqueta                                          Nuevo IVA %
 
   Nombre de columna                                 verifactu_nuevo_tipo_iva
 
@@ -453,16 +453,16 @@ no la diferencia: el plugin calcula automáticamente la diferencia con la factur
   Tipo                                              Texto
   ---------------------------------------------------------------------------------------------------
 
-Se utiliza con Rectificar por diferencias (R1) = Sí. Normalmente debe dejarse vacío para conservar
+Se utiliza con Rectificar R1 = Sí. Normalmente debe dejarse vacío para conservar
 el tipo de IVA de la factura original. En una factura original exenta (ver el apartado 12.1) debe
 dejarse siempre vacío.
 
-8.9. Nuevo tipo de recargo de equivalencia (%)
+8.9. Nuevo recargo %
 
   ---------------------------------------------------------------------------------------------------
   Configuración                                     Valor
   ------------------------------------------------- -------------------------------------------------
-  Etiqueta                                          Nuevo tipo de recargo de equivalencia (%)
+  Etiqueta                                          Nuevo recargo %
 
   Nombre de columna                                 verifactu_nuevo_tipo_recargo
 
@@ -471,7 +471,7 @@ dejarse siempre vacío.
   Tipo                                              Texto
   ---------------------------------------------------------------------------------------------------
 
-Se utiliza con Rectificar por diferencias (R1) = Sí. Normalmente debe dejarse vacío para conservar
+Se utiliza con Rectificar R1 = Sí. Normalmente debe dejarse vacío para conservar
 el recargo de equivalencia de la factura original. En una factura original exenta (ver el apartado
 12.1) debe dejarse siempre vacío.
 
@@ -479,23 +479,23 @@ el recargo de equivalencia de la factura original. En una factura original exent
 
 Comprueba los nueve campos:
 
-1.  Tipo de abono
+1.  Tipo abono
 
 2.  Comentario del abono
 
-3.  Sustituye a simplificada (F3)
+3.  Sustituye F2 (F3)
 
-4.  Anular factura (error de emisión)
+4.  Anular factura
 
-5.  Motivo de la anulación
+5.  Motivo anulación
 
-6.  Rectificar por diferencias (R1)
+6.  Rectificar R1
 
-7.  Nueva base imponible
+7.  Nueva base
 
-8.  Nuevo tipo de IVA (%)
+8.  Nuevo IVA %
 
-9.  Nuevo tipo de recargo de equivalencia (%)
+9.  Nuevo recargo %
 
 En Pantalla, deben estar configurados para que puedan utilizarse desde el administrador de HikaShop.
 
@@ -511,11 +511,18 @@ La configuración prevista es:
   Información adicional del pedido                                                     Sí
   ---------------------------------------------------------------------------------------------------
 
+Excepción: los campos Comentario del abono, Motivo anulación, Nueva base, Nuevo IVA % y Nuevo
+recargo % se instalan con Listado del Back-end = No, para que no aparezcan por defecto como columnas
+en el listado de pedidos. Los otros cuatro campos (Tipo abono, Sustituye F2 (F3),
+Anular factura y Rectificar R1) se instalan con Listado del Back-end = Sí.
+Si quieres ver alguno de los cinco primeros en el listado, puedes activarlo a mano en Campos
+personalizados; las actualizaciones posteriores no lo vuelven a desactivar.
+
 Guarda cada campo después de comprobar la configuración.
 
 10. Referencia de abonos y rectificaciones
 
-El usuario selecciona una descripción comprensible en Tipo de abono.
+El usuario selecciona una descripción comprensible en Tipo abono.
 
 El plugin realiza la correspondencia con los códigos de rectificación utilizados por VERI*FACTU.
 
@@ -526,7 +533,7 @@ Tabla de referencia
   ------------------------------------------------------------------------------------------------------
   Nº    Campo            Qué hacer                         Crear / modificar       Resultado VeriFactu
   ----- ---------------- --------------------------------- ----------------------- ---------------------
-  1     Tipo de abono    Seleccionar el motivo             Crear pedido nuevo de   R1 / R2 / R3 / R4 o
+  1     Tipo abono       Seleccionar el motivo             Crear pedido nuevo de   R1 / R2 / R3 / R4 o
                          correspondiente y utilizar un     abono/rectificación.    R5, según
                          pedido de abono con importe                               corresponda.
                          negativo.                                                 
@@ -599,9 +606,9 @@ Tabla de referencia
         abono            explicación de la                                         complementaria.
                          devolución/rectificación.                                 
 
-  3     Sustituye a      Primero modificar datos del       Modificar pedido        F3.
-        simplificada     cliente y guardar después         existente               
-        (F3)             seleccionar Sí en el pedido que                           
+  3     Sustituye F2     Primero modificar datos del       Modificar pedido        F3.
+        (F3)             cliente y guardar después         existente               
+                         seleccionar Sí en el pedido que                           
                          tiene la F2 aceptada previamente.                         
 
   4     Anular factura   Seleccionar Sí en el pedido que   Modificar pedido        Registro de
@@ -643,7 +650,7 @@ Para una devolución o rectificación que deba representarse mediante un pedido 
 
 3.  Para un abono, utilizar el importe negativo correspondiente.
 
-4.  Seleccionar el Tipo de abono.
+4.  Seleccionar el Tipo abono.
 
 5.  Introducir, cuando corresponda, el Comentario del abono.
 
@@ -657,7 +664,7 @@ IVA 21 %: -21,00 €
 
 Total: -121,00 €
 
-Tipo de abono:
+Tipo abono:
 
 Devolución completa
 
@@ -671,9 +678,9 @@ El plugin utiliza el tipo de abono seleccionado para determinar el tratamiento c
 
 Cuando se utiliza la opción:
 
-Rectificar por diferencias = Sí
+Rectificar R1 = Sí
 
-la Nueva base imponible debe contener la base imponible final correcta.
+la Nueva base debe contener la base imponible final correcta.
 
 No debe introducirse directamente la diferencia.
 
@@ -689,7 +696,7 @@ Base imponible correcta:
 
 En:
 
-Nueva base imponible
+Nueva base
 
 debe introducirse:
 
@@ -699,7 +706,7 @@ El plugin calcula la diferencia correspondiente.
 
 La diferencia se calcula frente a lo ya declarado: la factura original más las rectificaciones por
 diferencias ya aceptadas sobre ella. Una vez aceptada la rectificación, el pedido vuelve a
-Rectificar por diferencias = No y los tres importes se vacían, de modo que guardar de nuevo el
+Rectificar R1 = No y los tres importes se vacían, de modo que guardar de nuevo el
 pedido no la repite. Para una nueva corrección, vuelva a seleccionar Sí e indique la nueva base
 final.
 
@@ -717,24 +724,24 @@ factura exenta no lleva tipo ni cuota de IVA. Estos casos se manejan así:
 
 A) Cliente CON NIF o identificación fiscal
 
-La rectificación por diferencias (Rectificar por diferencias (R1) = Sí) funciona igual que en una
+La rectificación por diferencias (Rectificar R1 = Sí) funciona igual que en una
 factura con IVA, con estas particularidades:
 
--   En Nueva base imponible se introduce la base imponible final correcta, no la diferencia.
+-   En Nueva base se introduce la base imponible final correcta, no la diferencia.
 
 -   El plugin envía solo la diferencia de la base imponible (positiva o negativa), sin tipo ni cuota
     de IVA.
 
 -   La rectificativa repite el mismo régimen y la misma causa de exención de la factura original.
 
--   Nuevo tipo de IVA (%) y Nuevo tipo de recargo de equivalencia (%) deben dejarse vacíos. Si se
+-   Nuevo IVA % y Nuevo recargo % deben dejarse vacíos. Si se
     rellenan, el plugin no envía la rectificación y muestra un aviso
     (error_rectificacion_exenta_con_tipo).
 
 -   Si el motivo de la rectificación es que el tratamiento fiscal era incorrecto (por ejemplo, la
     factura debía llevar IVA), no basta con una rectificación por diferencias: el plugin no la envía
     (error_rectificacion_cambio_tipo_no_soportado). En ese caso hay que usar un pedido de abono con
-    Tipo de abono = Error en IVA y emitir la factura correcta.
+    Tipo abono = Error en IVA y emitir la factura correcta.
 
 B) Cliente SIN NIF ni identificación fiscal
 
@@ -762,8 +769,7 @@ Cómo resolverlo:
 C) Facturas simplificadas exentas ya enviadas
 
 Si antes de esta versión se enviaron facturas simplificadas (F2) exentas que la AEAT aceptó, hay que
-regularizarlas. El plugin ofrece Anular factura (error de emisión) y Sustituye a factura
-simplificada (F3), pero cuál procede en cada caso debe decidirlo el obligado tributario junto con su
+regularizarlas. El plugin ofrece Anular factura y Sustituye F2 (F3), pero cuál procede en cada caso debe decidirlo el obligado tributario junto con su
 asesor fiscal.
 
 Nota: la tabla de referencia del apartado 10 y este apartado son una guía de funcionamiento del
@@ -771,27 +777,27 @@ plugin. No sustituyen la comprobación de la situación fiscal de cada operació
 
 13. Nuevo tipo de IVA y recargo de equivalencia
 
-Nuevo tipo de IVA (%)
+Nuevo IVA %
 
 Normalmente debe dejarse vacío cuando se pretende conservar el tipo de IVA original.
 
 En ese caso:
 
-Nuevo tipo de IVA (%) = vacío
+Nuevo IVA % = vacío
 
 El plugin mantiene el tipo original.
 
-Nuevo tipo de recargo de equivalencia (%)
+Nuevo recargo %
 
 Igualmente, normalmente debe dejarse vacío cuando se pretende conservar el recargo original.
 
-Nuevo tipo de recargo de equivalencia (%) = vacío
+Nuevo recargo % = vacío
 
 14. Sustitución de factura simplificada
 
 El plugin contempla la opción:
 
-Sustituye a simplificada (F3)
+Sustituye F2 (F3)
 
 Debe seleccionarse Sí en el pedido correspondiente cuando la operación tenga que generar una F3 a
 partir de una F2 previamente aceptada.
@@ -808,7 +814,7 @@ Cuando corresponda:
 
 1.  Seleccionar Sí en el pedido que contiene la factura que debe anularse.
 
-2.  Introducir el Motivo de la anulación.
+2.  Introducir el Motivo anulación.
 
 3.  Procesar el registro.
 
@@ -825,6 +831,31 @@ La aceptación es obligatoria para el envío.
 
 Si el cliente no acepta el aviso legal y las condiciones de uso, no se enviará ningún registro a la
 AEAT.
+
+Mientras no esté aceptado, además de bloquear el envío, el plugin muestra un aviso en toda la
+administración (no solo al guardar un pedido) recordando que hace falta aceptarlo. El aviso
+desaparece en cuanto se marca la casilla y se guarda la configuración del plugin.
+
+El mismo mecanismo avisa también, de forma independiente, cuando el último envío a la AEAT de un
+pedido (factura, rectificación o anulación) ha quedado en error o ha sido rechazado, aunque el aviso
+se haya producido guardando el pedido por AJAX (el desplegable rápido de estado, el popup
+"Información adicional") o incluso desde el propio checkout, donde antes solo quedaba constancia en
+el registro. El aviso desaparece solo en cuanto ese pedido se reenvía con éxito.
+
+También cubre el caso de una excepción (por ejemplo, un fallo de red o del certificado en el momento
+del envío) que interrumpe el proceso antes de que se llegue a guardar cualquier registro: antes no
+dejaba ningún rastro visible salvo el log de Joomla; ahora se guarda como incidencia y aparece
+igualmente en el aviso, con la referencia "ver log" para consultar el detalle técnico.
+
+El listado de pedidos de HikaShop (Pedidos > Compras) muestra además una columna "VeriFactu" con el
+estado del último envío de cada pedido (con el mismo color que en el registro de facturación: verde
+aceptado, amarillo pendiente, rojo error o rechazado). Se muestra siempre, sin necesidad de
+activarla en ningún selector de columnas. Las cabeceras de los campos de VeriFactu que se muestren
+en ese listado se estrechan para que el título se parta en varias líneas.
+
+En una actualización desde una versión anterior, si la aceptación no estaba guardada, el plugin NO
+la da por hecha: sigue bloqueando el envío y mostrando el aviso hasta que alguien entra a la
+configuración y la marca a mano.
 
 16. Estado que dispara el envío a VeriFactu
 
@@ -902,7 +933,7 @@ El registro permite consultar, según corresponda:
 
 18. Descarga del registro de facturación
 
-La versión v0.34.66 incorpora una opción de descarga del registro.
+La versión v0.34.73 incorpora una opción de descarga del registro.
 
 Esta función permite obtener el registro asociado al proceso de facturación desde el propio sistema.
 
@@ -964,7 +995,7 @@ El administrador debe renovar el certificado antes de su fecha de caducidad.
 
 21. Funciones NO contempladas en el plugin
 
-La v0.34.66 debe considerarse un sistema específico para el flujo VERI*FACTU implementado en
+La v0.34.73 debe considerarse un sistema específico para el flujo VERI*FACTU implementado en
 HikaShop.
 
 No están contempladas las siguientes funciones:
@@ -1032,7 +1063,7 @@ correspondientes.
 
 21.5. Instalación manual mediante SSH o Composer
 
-La instalación normal de la v0.34.66 no requiere que el usuario:
+La instalación normal de la v0.34.73 no requiere que el usuario:
 
 -   ejecute composer install;
 
@@ -1045,7 +1076,7 @@ La instalación normal de la v0.34.66 no requiere que el usuario:
 -   modifique archivos internos del plugin.
 
 Estas instrucciones pertenecían a procedimientos de versiones anteriores y no forman parte del
-procedimiento normal de instalación de la v0.34.66.
+procedimiento normal de instalación de la v0.34.73.
 
 21.6. Modificación manual de Attach Invoice
 
@@ -1056,11 +1087,11 @@ plugins/hikashop/attachinvoice/attachinvoice/invoice.php
 para instalar el plugin.
 
 Los antiguos manuales incluían un bloque de código para insertar manualmente el QR en esa plantilla.
-Ese procedimiento no debe formar parte del procedimiento de instalación de la v0.34.66.
+Ese procedimiento no debe formar parte del procedimiento de instalación de la v0.34.73.
 
 21.7. Operaciones fiscales no contempladas específicamente
 
-La versión v0.34.66 no contempla específicamente la gestión de las siguientes operaciones fiscales:
+La versión v0.34.73 no contempla específicamente la gestión de las siguientes operaciones fiscales:
 
 -   OSS / IOSS — ventas B2C a consumidores de otros países de la Unión Europea en las que
     corresponda aplicar el IVA del país de destino mediante los regímenes OSS/IOSS.
@@ -1117,7 +1148,7 @@ Plugin
 
 Campos HikaShop
 
--   Existe Tipo de abono.
+-   Existe Tipo abono.
 
 -   Existe Comentario del abono.
 
@@ -1129,7 +1160,8 @@ Campos HikaShop
 
 -   Están disponibles en el formulario del back-end.
 
--   Están disponibles en el listado del back-end.
+-   Están disponibles en el listado del back-end (salvo Comentario del abono, Motivo anulación,
+    Nueva base, Nuevo IVA % y Nuevo recargo %, que por defecto no se muestran).
 
 -   Están disponibles en la información adicional del pedido.
 
@@ -1185,7 +1217,7 @@ Mantén una copia de seguridad segura del certificado y conserva la contraseña 
 
 24. Modalidad de funcionamiento
 
-La v0.34.66 está diseñada para trabajar en modalidad:
+La v0.34.73 está diseñada para trabajar en modalidad:
 
 VERI*FACTU
 
@@ -1270,11 +1302,11 @@ Una vez configurado correctamente el sistema:
 
 -   El QR VERI*FACTU puede generarse cuando corresponda.
 
--   Las facturas rectificativas pueden clasificarse mediante Tipo de abono.
+-   Las facturas rectificativas pueden clasificarse mediante Tipo abono.
 
 -   Las anulaciones pueden gestionarse mediante Anular factura.
 
--   Las F3 contempladas por el plugin pueden gestionarse mediante Sustituye a simplificada.
+-   Las F3 contempladas por el plugin pueden gestionarse mediante Sustituye F2 (F3).
 
 -   El certificado digital muestra su fecha de caducidad cuando está disponible.
 

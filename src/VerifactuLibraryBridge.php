@@ -1216,7 +1216,7 @@ class VerifactuLibraryBridge
             return [
                 'estado' => 'error_tipo_abono',
                 'csv' => null,
-                'errores' => ['La factura tiene importe negativo y no se ha seleccionado el Tipo de abono.'],
+                'errores' => ['La factura tiene importe negativo y no se ha seleccionado el Tipo abono.'],
                 'qr' => null,
             ];
         }
@@ -1227,7 +1227,7 @@ class VerifactuLibraryBridge
             return [
                 'estado' => 'error_tipo_abono',
                 'csv' => null,
-                'errores' => ['El Tipo de abono solo puede utilizarse con una factura de importe negativo.'],
+                'errores' => ['El Tipo abono solo puede utilizarse con una factura de importe negativo.'],
                 'qr' => null,
             ];
         }
@@ -1243,7 +1243,7 @@ class VerifactuLibraryBridge
                 return [
                     'estado' => 'error_tipo_abono',
                     'csv' => null,
-                    'errores' => ['"Cancelación" ya no es un Tipo de abono válido, porque se confundía con el mecanismo de Anulación. Si la factura nunca debió existir (error de emisión, pedido duplicado), usa el campo "Anular factura" en vez de "Tipo de abono". Si en cambio se trata de una devolución o corrección de una venta real, elige un motivo más específico (ej. "Devolución completa", "Devolución parcial").'],
+                    'errores' => ['"Cancelación" ya no es un Tipo abono válido, porque se confundía con el mecanismo de Anulación. Si la factura nunca debió existir (error de emisión, pedido duplicado), usa el campo "Anular factura" en vez de "Tipo abono". Si en cambio se trata de una devolución o corrección de una venta real, elige un motivo más específico (ej. "Devolución completa", "Devolución parcial").'],
                     'qr' => null,
                 ];
             }
@@ -1251,7 +1251,7 @@ class VerifactuLibraryBridge
             return [
                 'estado' => 'error_tipo_abono',
                 'csv' => null,
-                'errores' => ['Tipo de abono no válido: ' . $tipoAbono],
+                'errores' => ['Tipo abono no válido: ' . $tipoAbono],
                 'qr' => null,
             ];
         }
@@ -2372,7 +2372,7 @@ class VerifactuLibraryBridge
             return [
                 'estado' => 'error_sin_desglose_original',
                 'csv' => null,
-                'errores' => ['La factura ' . $facturaOriginal->invoice_number . ' no tiene guardado un desglose de IVA reducible a un único tipo (o es anterior a esta funcionalidad), así que no se puede calcular automáticamente la diferencia. Revisa manualmente los importes y, si hace falta, usa "Tipo de abono" con un pedido de abono en su lugar.'],
+                'errores' => ['La factura ' . $facturaOriginal->invoice_number . ' no tiene guardado un desglose de IVA reducible a un único tipo (o es anterior a esta funcionalidad), así que no se puede calcular automáticamente la diferencia. Revisa manualmente los importes y, si hace falta, usa "Tipo abono" con un pedido de abono en su lugar.'],
                 'qr' => null,
             ];
         }
@@ -2382,7 +2382,7 @@ class VerifactuLibraryBridge
             return [
                 'estado' => 'error_rectificacion_sin_datos',
                 'csv' => null,
-                'errores' => ['"Rectificar por diferencias" está en Sí pero no se ha indicado la Nueva base imponible.'],
+                'errores' => ['"Rectificar R1" está en Sí pero no se ha indicado "Nueva base".'],
                 'qr' => null,
             ];
         }
@@ -2400,7 +2400,7 @@ class VerifactuLibraryBridge
                 return [
                     'estado' => 'error_rectificacion_exenta_con_tipo',
                     'csv' => null,
-                    'errores' => ['La factura ' . $facturaOriginal->invoice_number . ' es una operación exenta de IVA (sin tipo ni cuota), así que "Nuevo tipo de IVA" y "Nuevo tipo de recargo" no aplican: déjalos en blanco. Si el tratamiento fiscal era incorrecto (p. ej. debía llevar IVA), usa "Tipo de abono" = "Error en IVA" con un pedido de abono.'],
+                    'errores' => ['La factura ' . $facturaOriginal->invoice_number . ' es una operación exenta de IVA (sin tipo ni cuota), así que "Nuevo IVA %" y "Nuevo recargo %" no aplican: déjalos en blanco. Si el tratamiento fiscal era incorrecto (p. ej. debía llevar IVA), usa "Tipo abono" = "Error en IVA" con un pedido de abono.'],
                     'qr' => null,
                 ];
             }
@@ -2410,7 +2410,7 @@ class VerifactuLibraryBridge
                 return [
                     'estado' => 'error_rectificacion_exenta_sin_regimen',
                     'csv' => null,
-                    'errores' => ['No se ha podido determinar el régimen y la causa de exención de la factura ' . $facturaOriginal->invoice_number . ' (no están guardados y no se puede deducir el país de destino del pedido), así que no se envía la rectificación. Usa "Tipo de abono" con un pedido de abono en su lugar.'],
+                    'errores' => ['No se ha podido determinar el régimen y la causa de exención de la factura ' . $facturaOriginal->invoice_number . ' (no están guardados y no se puede deducir el país de destino del pedido), así que no se envía la rectificación. Usa "Tipo abono" con un pedido de abono en su lugar.'],
                     'qr' => null,
                 ];
             }
@@ -2445,7 +2445,7 @@ class VerifactuLibraryBridge
                 return [
                     'estado' => 'error_rectificacion_cambio_tipo_no_soportado',
                     'csv' => null,
-                    'errores' => ['"Rectificar por diferencias" no admite todavía un cambio real de tipo de IVA/recargo respecto a la factura original (' . $tipoIvaOriginalComparacion . '% / ' . $tipoRecargoOriginalComparacion . '%): solo admite corregir la BASE manteniendo los mismos tipos. Para un cambio de tipo real usa "Tipo de abono" = "Error en IVA" con un pedido de abono en su lugar. Deja "Nuevo tipo de IVA" y "Nuevo tipo de recargo" en blanco para esta rectificación.'],
+                    'errores' => ['"Rectificar R1" no admite todavía un cambio real de tipo de IVA/recargo respecto a la factura original (' . $tipoIvaOriginalComparacion . '% / ' . $tipoRecargoOriginalComparacion . '%): solo admite corregir la BASE manteniendo los mismos tipos. Para un cambio de tipo real usa "Tipo abono" = "Error en IVA" con un pedido de abono en su lugar. Deja "Nuevo IVA %" y "Nuevo recargo %" en blanco para esta rectificación.'],
                     'qr' => null,
                 ];
             }
@@ -2479,7 +2479,7 @@ class VerifactuLibraryBridge
             return [
                 'estado' => 'error_rectificacion_sin_diferencia',
                 'csv' => null,
-                'errores' => ['La Nueva base imponible (y, en su caso, el nuevo tipo) coincide con lo ya declarado para la factura ' . $facturaOriginal->invoice_number . ' (la factura más sus rectificaciones por diferencias aceptadas): no hay ninguna diferencia que rectificar.'],
+                'errores' => ['La "Nueva base" (y, en su caso, el nuevo tipo) coincide con lo ya declarado para la factura ' . $facturaOriginal->invoice_number . ' (la factura más sus rectificaciones por diferencias aceptadas): no hay ninguna diferencia que rectificar.'],
                 'qr' => null,
             ];
         }

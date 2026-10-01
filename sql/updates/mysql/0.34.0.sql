@@ -15,7 +15,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Anular factura (error de emisión)',
+    'Anular factura',
     'verifactu_anular_factura',
     'singledropdown',
     'No::No::0
@@ -42,7 +42,7 @@ INSERT INTO `#__hikashop_field`
      `field_with_sub_categories`, `field_display`)
 SELECT
     'order',
-    'Motivo de la anulación',
+    'Motivo anulación',
     'verifactu_motivo_anulacion',
     'textarea',
     '',
