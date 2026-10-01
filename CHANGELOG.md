@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.34.74
+
+Documento de la factura rectificativa por diferencias (R1/R5). Hasta ahora
+la rectificación solo existía en el registro y en la AEAT, y el cliente solo
+podía recibir la factura del pedido, con las líneas e importes de la
+original. En la página del pedido, bajo el número de factura, aparece la
+línea "Factura rectificativa" con un enlace por cada rectificación por
+diferencias aceptada; cada enlace abre un documento imprimible con su número
+y fecha, la factura que rectifica, solo la diferencia (base, IVA, recargo y
+total), la base resultante y el QR de la propia rectificativa. La factura
+del pedido no cambia. Los pedidos de abono no lo necesitan: su propia
+factura es la rectificativa.
+
 ## 0.34.73
 
 Nombres más cortos para 3 campos personalizados de pedido: "Tipo abono",

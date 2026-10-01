@@ -715,6 +715,13 @@ el número de la factura del pedido. Con la numeración propia activada toma el 
 la serie R; sin ella, el número de la factura original seguido de -R1, -R2, etc. Es una R5 si la
 factura original es simplificada (F2) y una R1 en los demás casos.
 
+La factura del pedido sigue siendo la original, con sus líneas y su QR. La factura rectificativa
+es un documento aparte: en la página del pedido, bajo el número de factura, aparece la línea
+Factura rectificativa con un enlace por cada rectificación por diferencias aceptada. Cada enlace
+abre el documento que se entrega al cliente: emisor, destinatario, número y fecha de la
+rectificativa, la factura que rectifica, solo los importes de la diferencia, la base resultante y
+el QR de la propia rectificativa. Se imprime o se guarda en PDF con el botón Imprimir.
+
 12.1. Facturas exentas: Canarias, Ceuta, Melilla y fuera de la Unión Europea
 
 Los pedidos cuyo destino es Canarias, Ceuta o Melilla, o un país fuera de la Unión Europea, se
