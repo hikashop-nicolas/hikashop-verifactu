@@ -530,6 +530,13 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
             ];
         }
 
+        // Documento de una rectificación por diferencias, para el cliente.
+        if ($task === 'rectificativa') {
+            $inputR = \Joomla\CMS\Factory::getApplication()->input;
+
+            return $this->buildRectificativaHtml($inputR->getInt('order_id'), $inputR->getInt('id'));
+        }
+
         // --- Registro de facturación VeriFactu: consulta y exportación ---
         // (RD 1007/2023 / Orden HAC/1177/2024: conservación, accesibilidad,
         // legibilidad y posibilidad de volcado/exportación de los registros
@@ -1781,6 +1788,14 @@ HTML;
             if ($esListado && stripos($body, 'verifactu-col-estado-script') === false) {
                 $script .= self::scriptColumnaEstadoListado();
             }
+            if ($esPedido && stripos($body, 'verifactu-rectificativas-script') === false) {
+                $cid = $input->get('cid', [], 'array');
+                $orderId = (int) (is_array($cid) ? reset($cid) : $cid) ?: $input->getInt('order_id');
+                $rectificativas = $orderId > 0 ? $this->rectificativasDelPedido($orderId) : [];
+                if ($rectificativas) {
+                    $script .= self::scriptRectificativasPedido($orderId, $rectificativas);
+                }
+            }
 
             if ($script !== '') {
                 $body = (stripos($body, '</body>') !== false)
@@ -1915,6 +1930,234 @@ HTML;
       // no bloquear el listado por un fallo de este script
     }
   });
+})();
+</script>
+HTML;
+    }
+
+    /**
+     * Rectificaciones por diferencias aceptadas (R1/R5) del pedido. Un pedido
+     * de abono (tipo_abono) es su propia factura rectificativa en HikaShop,
+     * así que solo se listan las que no tienen otro documento.
+     */
+    private function rectificativasDelPedido(int $orderId, int $id = 0): array
+    {
+        $db = $this->db();
+        $aceptado = $db->quote('aceptado') . ',' . $db->quote('aceptado_con_errores');
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from('#__hikashop_verifactu_registro')
+            ->where('order_id = ' . $orderId)
+            ->where('tipo_registro = ' . $db->quote('alta'))
+            ->where('tipo_factura IN (' . $db->quote('R1') . ',' . $db->quote('R5') . ')')
+            ->where('tipo_abono IS NULL')
+            ->where('factura_rectificada IS NOT NULL')
+            ->where('factura_rectificada <> invoice_number')
+            ->where('estado_envio IN (' . $aceptado . ')')
+            ->where(
+                'invoice_number NOT IN (SELECT a.invoice_number FROM #__hikashop_verifactu_registro AS a'
+                . ' WHERE a.order_id = ' . $orderId . ' AND a.tipo_registro = ' . $db->quote('anulacion')
+                . ' AND a.estado_envio IN (' . $aceptado . '))'
+            )
+            ->order('id ASC');
+        if ($id > 0) {
+            $query->where('id = ' . $id);
+        }
+        $db->setQuery($query);
+
+        return $db->loadObjectList() ?: [];
+    }
+
+    private static function importeEs(?float $valor): string
+    {
+        return $valor === null ? '' : number_format($valor, 2, ',', '.') . ' €';
+    }
+
+    private static function fechaEs(string $fecha): string
+    {
+        $t = strtotime($fecha);
+
+        return $t ? date('d/m/Y', $t) : $fecha;
+    }
+
+    /**
+     * task=rectificativa -- la factura rectificativa por diferencias como
+     * documento: emisor, destinatario, factura rectificada, solo la
+     * diferencia y el QR de la propia R1. La factura del pedido sigue
+     * siendo la original.
+     */
+    private function buildRectificativaHtml(int $orderId, int $id): string
+    {
+        $e = static fn($v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+
+        $filas = ($orderId > 0 && $id > 0) ? $this->rectificativasDelPedido($orderId, $id) : [];
+        if (!$filas) {
+            return '<!doctype html><html lang="es"><head><meta charset="utf-8"></head><body style="font-family:Arial,sans-serif">'
+                . '<p>No hay ninguna rectificación por diferencias aceptada con esos datos.</p></body></html>';
+        }
+        $r = $filas[0];
+
+        $db = $this->db();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select(['invoice_date', 'base_imponible'])
+                ->from('#__hikashop_verifactu_registro')
+                ->where('order_id = ' . $orderId)
+                ->where('invoice_number = ' . $db->quote((string) $r->factura_rectificada))
+                ->where('tipo_registro = ' . $db->quote('alta'))
+                ->where('estado_envio IN (' . $db->quote('aceptado') . ',' . $db->quote('aceptado_con_errores') . ')')
+                ->order('id ASC')
+                ->setLimit(1)
+        );
+        $original = $db->loadObject();
+
+        // base de la factura tras esta rectificación (original + diferencias hasta esta)
+        $baseResultante = null;
+        if ($original && $original->base_imponible !== null) {
+            $baseResultante = (float) $original->base_imponible;
+            foreach ($this->rectificativasDelPedido($orderId) as $dif) {
+                if ((string) $dif->factura_rectificada === (string) $r->factura_rectificada && (int) $dif->id <= (int) $r->id) {
+                    $baseResultante += (float) $dif->base_imponible;
+                }
+            }
+        }
+
+        $order = null;
+        try {
+            if (!function_exists('hikashop_get')) {
+                require_once JPATH_ADMINISTRATOR . '/components/com_hikashop/helpers/helper.php';
+            }
+            $order = hikashop_get('class.order')->loadFullOrder($orderId, true, false);
+        } catch (\Throwable $ex) {
+            self::log('No se pudo cargar el pedido ' . $orderId . ' para la factura rectificativa: ' . $ex->getMessage(), \Joomla\CMS\Log\Log::WARNING);
+        }
+
+        $destinatario = '';
+        if ($order && !empty($order->billing_address)) {
+            try {
+                $destinatario = hikashop_get('class.address')->displayAddress($order->fields, $order->billing_address, 'order');
+            } catch (\Throwable $ex) {
+                $destinatario = '';
+            }
+            $nifCliente = trim((string) ($order->billing_address->address_vat ?? ''));
+            if ($nifCliente !== '' && stripos(strip_tags($destinatario), $nifCliente) === false) {
+                $destinatario .= '<br/>NIF: ' . $e($nifCliente);
+            }
+        }
+
+        $descripcion = '';
+        if (!empty($r->xml_enviado) && preg_match('#<(?:[A-Za-z0-9]+:)?DescripcionOperacion>(.*?)</#s', (string) $r->xml_enviado, $m)) {
+            $descripcion = html_entity_decode($m[1], ENT_QUOTES | ENT_XML1, 'UTF-8');
+        }
+
+        $titulo = $r->tipo_factura === 'R5' ? 'Factura rectificativa simplificada' : 'Factura rectificativa';
+        $emisor = $e($this->params->get('nombre_emisor')) . '<br/>NIF: ' . $e($r->nif_emisor);
+        $direccionTienda = $this->getHikaShopBillingData()['direccion'];
+        if ($direccionTienda !== '') {
+            $emisor .= '<br/>' . nl2br($e($direccionTienda));
+        }
+
+        $exenta = $r->tipo_iva === null && $r->cuota_iva === null;
+        $llevaRecargo = $r->recargo_equivalencia !== null && (float) $r->recargo_equivalencia != 0.0;
+        $cabRecargo = $llevaRecargo ? '<th>Recargo</th>' : '';
+        $celdaRecargo = $llevaRecargo
+            ? '<td>' . $e(self::importeEs((float) $r->recargo_equivalencia)) . ' (' . $e(number_format((float) $r->tipo_recargo, 2, ',', '.')) . ' %)</td>'
+            : '';
+        $celdaIva = $exenta
+            ? '<td>Exenta (' . $e($r->operacion_exenta) . ')</td><td></td>'
+            : '<td>' . $e(number_format((float) $r->tipo_iva, 2, ',', '.')) . ' %</td><td>' . $e(self::importeEs((float) $r->cuota_iva)) . '</td>';
+
+        $resultado = $baseResultante !== null
+            ? '<p>Base imponible de la factura ' . $e($r->factura_rectificada) . ' tras esta rectificación: <strong>' . $e(self::importeEs($baseResultante)) . '</strong></p>'
+            : '';
+
+        $qr = '';
+        if (!empty($r->qr_url)) {
+            $qr = '<div class="qr"><img src="' . $e(trim((string) $r->qr_url)) . '" alt="QR VeriFactu"/>'
+                . '<p>Factura verificable en la sede electrónica de la AEAT<br/>VERI*FACTU</p></div>';
+        }
+
+        $fechaOriginal = $original ? ' de fecha ' . $e(self::fechaEs((string) $original->invoice_date)) : '';
+        $pedido = $order ? $e($order->order_number) : (string) $orderId;
+
+        return <<<HTML
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>{$e($titulo)} {$e($r->invoice_number)}</title>
+<style>
+body{font-family:Arial,sans-serif;margin:24px;color:#222;font-size:14px}
+h1{font-size:22px;text-align:center;margin:10px 0 24px;text-transform:uppercase}
+.cab{display:flex;justify-content:space-between;gap:24px;margin-bottom:24px}
+.cab div{flex:1}
+.datos{text-align:right}
+h2{font-size:13px;text-transform:uppercase;color:#555;margin:0 0 6px}
+table{width:100%;border-collapse:collapse;margin:18px 0}
+th,td{border:1px solid #ccc;padding:7px 9px;text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{background:#f3f3f3}
+.qr{width:40mm;text-align:center;margin-top:20px}
+.qr img{width:40mm;height:40mm}
+.qr p{font-size:10px;margin:4px 0 0}
+#imprimir{float:right}
+@media print{#imprimir{display:none}body{margin:0}}
+</style></head><body>
+<button id="imprimir" type="button" onclick="window.print()">Imprimir</button>
+<h1>{$e($titulo)}</h1>
+<div class="cab">
+  <div><h2>Emisor</h2>{$emisor}</div>
+  <div class="datos">
+    <strong>Nº {$e($r->invoice_number)}</strong><br/>
+    Fecha de expedición: {$e(self::fechaEs((string) $r->invoice_date))}<br/>
+    Pedido: {$pedido}
+  </div>
+</div>
+<div class="cab"><div><h2>Destinatario</h2>{$destinatario}</div></div>
+<p>Rectifica la factura <strong>{$e($r->factura_rectificada)}</strong>{$fechaOriginal}, por diferencias: los importes de este documento son la diferencia que se suma a los de esa factura.</p>
+<p>{$e($descripcion)}</p>
+<table>
+  <thead><tr><th>Concepto</th><th>Base imponible</th><th>IVA</th><th>Cuota IVA</th>{$cabRecargo}<th>Total</th></tr></thead>
+  <tbody><tr>
+    <td>Rectificación de la factura {$e($r->factura_rectificada)}</td>
+    <td>{$e(self::importeEs((float) $r->base_imponible))}</td>
+    {$celdaIva}
+    {$celdaRecargo}
+    <td><strong>{$e(self::importeEs((float) $r->total_factura))}</strong></td>
+  </tr></tbody>
+</table>
+{$resultado}
+{$qr}
+</body></html>
+HTML;
+    }
+
+    /**
+     * Página del pedido: una línea "Factura rectificativa" bajo el número de
+     * factura, con un enlace por cada rectificación por diferencias aceptada.
+     */
+    private static function scriptRectificativasPedido(int $orderId, array $rectificativas): string
+    {
+        $base = 'index.php?option=com_ajax&group=hikashop&plugin=verifactu&format=raw&task=rectificativa&order_id=' . $orderId . '&id=';
+        $enlaces = [];
+        foreach ($rectificativas as $r) {
+            $enlaces[] = '<a href="' . htmlspecialchars($base . (int) $r->id, ENT_QUOTES, 'UTF-8') . '" target="_blank">'
+                . htmlspecialchars((string) $r->invoice_number, ENT_QUOTES, 'UTF-8') . '</a>';
+        }
+        $html = json_encode(implode(', ', $enlaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+        return <<<HTML
+<script id="verifactu-rectificativas-script">
+(function () {
+  function insertar() {
+    var fila = document.querySelector('tr.hikashop_order_invoicenumber');
+    if (!fila || document.querySelector('tr.verifactu_rectificativas')) { return; }
+    var tr = document.createElement('tr');
+    tr.className = 'verifactu_rectificativas';
+    tr.innerHTML = '<td class="key"><label>Factura rectificativa</label></td><td></td>';
+    tr.lastChild.innerHTML = {$html};
+    fila.parentNode.insertBefore(tr, fila.nextSibling);
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', insertar); } else { insertar(); }
+  // el bloque general se recarga por AJAX al editarlo
+  new MutationObserver(insertar).observe(document.body, { childList: true, subtree: true });
 })();
 </script>
 HTML;
