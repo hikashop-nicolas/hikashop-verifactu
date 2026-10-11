@@ -42,7 +42,7 @@ if (!$hasQr && !empty($order->order_id)) {
             }
             $invoiceHtml .= '<div class="verifactu-qr" style="margin-top:15px;text-align:center;width:35mm;">'
                 . '<img src="' . htmlspecialchars($qr, ENT_QUOTES, 'UTF-8') . '" style="width:35mm;height:35mm;" alt="QR VeriFactu" />'
-                . '<p style="font-size:9px;margin-top:4px;max-width:35mm;">Factura verificable en la sede electrónica de la AEAT — VERIFACTU</p>'
+                . '<p style="font-size:9px;margin-top:4px;max-width:35mm;">Factura verificable en la sede electrónica de la AEAT — VERI*FACTU</p>'
                 . '</div>';
         }
     } catch (Throwable $e) {

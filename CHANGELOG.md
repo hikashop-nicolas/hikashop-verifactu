@@ -1,5 +1,90 @@
 # Changelog
 
+## 0.34.83
+
+Importes con coma decimal y punto de miles (1.234,56): en la pantalla "Registro de
+facturación VeriFactu" (columna Total) y en la exportación CSV (total, base
+imponible, tipo de IVA, cuota, tipo de recargo y recargo). El XML enviado a la
+AEAT y el ZIP de XML no cambian: el esquema oficial exige el punto decimal.
+
+## 0.34.82
+
+Columna "Rectificaciones R1" del listado de pedidos: queda vacía cuando el pedido
+no tiene rectificaciones ni anulación (solo la factura F1/F2/F3 original); sigue
+mostrando el número si las hay y "Anulado" si la factura está anulada.
+
+Campo "Anular factura": cuando la anulación se acepta, el campo vuelve a No tras
+guardar el pedido (antes se quedaba en Sí). Si la AEAT no la acepta se deja en Sí
+para poder corregir y reintentar.
+
+## 0.34.81
+
+Columna "Rectificaciones R1" del listado de pedidos: la cabecera se muestra en
+dos líneas (Rectifi- / caciones R1) para caber en el ancho de la columna, y la
+celda muestra solo el número de rectificaciones vigentes del pedido (0 si no
+tiene) o "Anulado" si la factura del pedido está anulada. Una R1/R5 anulada no
+cuenta ni marca el pedido como anulado.
+
+## 0.34.80
+
+Listado de pedidos de HikaShop: la columna del campo "Rectificar R1" pasa a
+llamarse "Rectificaciones R1" y, en lugar de un simple "Sí", indica cuántas
+rectificaciones por diferencias (R1/R5) vigentes tiene cada pedido ("1
+rectificación", "2 rectificaciones"). Cuenta las aceptadas por la AEAT y no
+anuladas, igual que los enlaces de la página del pedido. Si el pedido no tiene
+ninguna aceptada, la celda se queda como estaba (Sí pendiente, No o vacía). El
+campo dentro del pedido sigue llamándose "Rectificar R1".
+
+## 0.34.79
+
+Factura rectificativa: los títulos (Fecha, Factura, Dirección de facturación,
+Lista de productos, Imprimir) solo se toman de la traducción de HikaShop si el
+back-end está en español; con otro idioma se usa el texto español fijo, para que
+el documento no quede mezclado. Si la dirección de la tienda de HikaShop no
+incluye el nombre del emisor configurado en el plugin, se antepone ese nombre
+(igual que ya se hacía con el NIF).
+
+## 0.34.78
+
+El "Sí" de "Rectificar R1" ya no se queda pegado cuando se anula la
+rectificativa: al aceptarse una anulación, si el pedido no conserva ninguna
+rectificación por diferencias válida (todas anuladas, o su factura anulada), el
+campo vuelve a No. Además, una R1/R5 anulada deja de contar como rectificación
+aceptada al decidir si un guardado con "Sí" es una petición nueva.
+
+## 0.34.77
+
+Pantalla de registros: nuevo filtro "Tipo de factura" (F1, F2, R1, R5), que
+también se aplica a las exportaciones CSV y XML del período. La exportación CSV
+incluye ahora base imponible, tipo de IVA, cuota de IVA, tipo de recargo y
+recargo de equivalencia de cada registro, además del total. Filtrando por fechas
+del trimestre (la fecha de cada registro es la de expedición de esa factura, por
+lo que una R1 de octubre cae en el cuarto trimestre aunque rectifique una
+factura de septiembre) y por tipo, el CSV da directamente los importes a
+declarar. Las anulaciones no llevan importes propios y salen en blanco.
+
+## 0.34.76
+
+La factura rectificativa por diferencias (R1/R5) tiene ahora el mismo aspecto
+que la factura del pedido: título centrado, logo y dirección de la tienda de
+HikaShop, fecha y número a la derecha, recuadros "Dirección de facturación" y
+"Lista de productos" con el desglose (subtotal, IVA, recargo y total de la
+diferencia) y recuadro "Información adicional" con los mismos campos del pedido
+que muestra la factura, por lo que se mantiene el comentario. Solo cambia la
+presentación: no se modifica ningún dato del pedido, de la factura original ni
+del registro Verifactu.
+
+## 0.34.75
+
+La columna "Rectificar R1" del listado de pedidos muestra "Sí" en los pedidos
+rectificados por diferencias. Antes el campo volvía a "No" al aceptarse la
+R1/R5; ahora se queda en "Sí" y solo se vacían los importes. Un "Sí" sin
+"Nueva base" en un pedido ya rectificado es solo la marca: guardar el pedido
+no repite la rectificación ni da error. Para una nueva corrección basta con
+indicar la nueva base final. Al actualizar, una sola vez, se marcan con "Sí"
+los pedidos que ya tenían una R1/R5 por diferencias aceptada. El texto bajo el
+QR pasa a "VERI*FACTU" (factura del pedido y rectificativa).
+
 ## 0.34.74
 
 Documento de la factura rectificativa por diferencias (R1/R5). Hasta ahora

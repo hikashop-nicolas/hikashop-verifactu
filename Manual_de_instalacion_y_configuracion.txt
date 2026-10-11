@@ -705,10 +705,10 @@ debe introducirse:
 El plugin calcula la diferencia correspondiente.
 
 La diferencia se calcula frente a lo ya declarado: la factura original más las rectificaciones por
-diferencias ya aceptadas sobre ella. Una vez aceptada la rectificación, el pedido vuelve a
-Rectificar R1 = No y los tres importes se vacían, de modo que guardar de nuevo el
-pedido no la repite. Para una nueva corrección, vuelva a seleccionar Sí e indique la nueva base
-final.
+diferencias ya aceptadas sobre ella. Una vez aceptada la rectificación, el pedido se queda en
+Rectificar R1 = Sí (así el listado de pedidos lo muestra como rectificado) y los importes se
+vacían, de modo que guardar de nuevo el pedido no la repite. Para una nueva corrección, indique la
+nueva base final.
 
 Cada rectificación por diferencias es una factura propia, con su número y su fecha, y no cambia
 el número de la factura del pedido. Con la numeración propia activada toma el siguiente número de
@@ -721,6 +721,40 @@ Factura rectificativa con un enlace por cada rectificación por diferencias acep
 abre el documento que se entrega al cliente: emisor, destinatario, número y fecha de la
 rectificativa, la factura que rectifica, solo los importes de la diferencia, la base resultante y
 el QR de la propia rectificativa. Se imprime o se guarda en PDF con el botón Imprimir.
+
+Desde la versión 0.34.76 el documento tiene el mismo aspecto que la factura del pedido (logo y
+dirección de la tienda, recuadros Dirección de facturación y Lista de productos, y el recuadro
+Información adicional con los mismos campos del pedido, como el comentario). Solo cambia la
+presentación: no se modifica ningún dato.
+
+Para preparar la declaración trimestral (modelo 303) use la pantalla de registros: filtre por las
+fechas del trimestre y por Tipo de factura (F1, F2, R1, R5) y exporte el CSV, que incluye base
+imponible, tipo de IVA, cuota y recargo de cada registro. La fecha de cada registro es la de
+expedición de esa factura, así que una rectificativa expedida en octubre aparece en el cuarto
+trimestre aunque rectifique una factura de septiembre; el campo Rectificar R1 del pedido solo indica
+que existe una rectificación, no en qué trimestre se expidió. Confirme con su gestor el tratamiento
+fiscal concreto de cada caso.
+
+Formato de los importes: en la pantalla de registros y en el CSV los importes llevan coma decimal y
+punto de miles (1.234,56). Los XML (los que se envían a la AEAT y los del ZIP de exportación) mantienen
+el punto decimal porque así lo exige el esquema oficial.
+
+Aspecto de la factura rectificativa: el emisor sale de la dirección de la tienda de HikaShop
+(Configuración > Dirección de la tienda), que debe llevar la razón social completa y el NIF; si
+falta el nombre configurado en el plugin o el NIF, se añaden. Los títulos están siempre en español
+salvo que el back-end esté en español y HikaShop los traduzca (en ese caso son los de la factura del
+pedido). La rectificativa copia el diseño estándar de la factura de HikaShop: si su tienda tiene un
+override de la plantilla de factura o usa un plugin de factura en PDF, la rectificativa no lo sigue
+y puede diferir de la factura original en el diseño.
+
+Listado de pedidos: la columna de Rectificar R1 se muestra con el nombre Rectificaciones R1 (en dos
+líneas) y contiene solo el número de rectificaciones por diferencias aceptadas y no anuladas del
+pedido (vacía si no tiene ninguna), o la palabra Anulado si la factura del pedido está anulada. Una
+rectificación anulada no cuenta. Dentro del pedido el campo sigue siendo Rectificar R1, que es el que
+se pone en Sí para pedir una nueva rectificación.
+Si el pedido no tiene rectificaciones ni anulación, la celda queda vacía. Tras aceptarse una anulación
+de factura, el campo Anular factura vuelve a No automáticamente; si la anulación no se acepta se
+queda en Sí para poder corregir y reintentar.
 
 12.1. Facturas exentas: Canarias, Ceuta, Melilla y fuera de la Unión Europea
 

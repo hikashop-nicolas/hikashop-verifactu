@@ -524,9 +524,13 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
             $ids = array_values(array_unique(array_filter(array_map('intval', (array) $ids))));
             $ids = array_slice($ids, 0, 200);
 
+            $rectPedidos = $this->rectificacionesPorPedido($ids);
+
             return (object) [
                 'success' => true,
                 'estados' => empty($ids) ? new \stdClass() : $this->estadosPorPedido($ids),
+                'rectificaciones' => $rectPedidos['rectificaciones'],
+                'anuladas' => $rectPedidos['anuladas'],
             ];
         }
 
@@ -697,6 +701,13 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
             $tipoRegistro = '';
         }
 
+        // v0.34.77: filtro por tipo de factura (F1, F2, R1, R5...) para sacar, por
+        // ejemplo, solo las rectificativas expedidas en un trimestre.
+        $tipoFactura = strtoupper(trim((string) $input->getCmd('tipo_factura', '')));
+        if (!preg_match('/^[A-Z][0-9]$/', $tipoFactura)) {
+            $tipoFactura = '';
+        }
+
         $q = trim((string) $input->getString('q', ''));
 
         $page = max(1, (int) $input->getInt('page', 1));
@@ -708,6 +719,7 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
             'fecha_hasta' => $fechaHasta,
             'estado' => $estado,
             'tipo_registro' => $tipoRegistro,
+            'tipo_factura' => $tipoFactura,
             'q' => $q,
             'page' => $page,
             'per_page' => $perPage,
@@ -733,6 +745,9 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
         }
         if ($f['tipo_registro'] !== '') {
             $query->where('tipo_registro = ' . $db->quote($f['tipo_registro']));
+        }
+        if ($f['tipo_factura'] !== '') {
+            $query->where('tipo_factura = ' . $db->quote($f['tipo_factura']));
         }
         if ($f['q'] !== '') {
             $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $f['q']) . '%';
@@ -834,7 +849,8 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
      * fila en memoria para deducirla).
      */
     private const REGISTRO_CSV_COLUMNAS = [
-        'id', 'order_id', 'invoice_number', 'invoice_date', 'nif_emisor', 'total_factura', 'tipo_abono',
+        'id', 'order_id', 'invoice_number', 'invoice_date', 'nif_emisor', 'total_factura',
+        'base_imponible', 'tipo_iva', 'cuota_iva', 'tipo_recargo', 'recargo_equivalencia', 'tipo_abono',
         'tipo_factura', 'tipo_rectificativa', 'factura_rectificada', 'tipo_registro', 'motivo_anulacion',
         'registro_anterior_id', 'hash_anterior', 'hash_actual', 'qr_url', 'estado_envio', 'intentos', 'created', 'modified',
     ];
@@ -845,6 +861,13 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
      * lotes en vez de cargar todo el rango en memoria (memory_limit).
      */
     private const REGISTRO_LOTE_EXPORTACION = 200;
+
+    /**
+     * v0.34.83: columnas del CSV que son importes o porcentajes; salen con coma
+     * decimal y punto de miles (1.234,56). El XML enviado a la AEAT no cambia: su
+     * esquema exige el punto decimal.
+     */
+    private const REGISTRO_CSV_IMPORTES = ['total_factura', 'base_imponible', 'tipo_iva', 'cuota_iva', 'tipo_recargo', 'recargo_equivalencia'];
 
     /**
      * Siguiente lote de filas del filtro, en el mismo orden que la
@@ -942,7 +965,11 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
             foreach ($rows as $row) {
                 $linea = [];
                 foreach (self::REGISTRO_CSV_COLUMNAS as $col) {
-                    $linea[] = $row->$col;
+                    $valor = $row->$col;
+                    if ($valor !== null && $valor !== '' && in_array($col, self::REGISTRO_CSV_IMPORTES, true) && is_numeric($valor)) {
+                        $valor = number_format((float) $valor, 2, ',', '.');
+                    }
+                    $linea[] = $valor;
                 }
                 fputcsv($out, $linea, ';');
             }
@@ -1250,6 +1277,13 @@ tr:hover td{background:#f9f9f9}
     <option value="alta">Alta (factura)</option>
     <option value="anulacion">Anulación</option>
   </select></div>
+  <div><label>Tipo de factura</label><select name="tipo_factura">
+    <option value="">Todas</option>
+    <option value="F1">F1 (factura)</option>
+    <option value="F2">F2 (simplificada)</option>
+    <option value="R1">R1 (rectificativa)</option>
+    <option value="R5">R5 (rectificativa simplificada)</option>
+  </select></div>
   <div><label>Buscar (nº pedido o nº factura)</label><input type="text" name="q" placeholder="ej. 245 o 26-0245"></div>
   <div class="acciones">
     <button type="submit" class="primario">Buscar</button>
@@ -1314,6 +1348,15 @@ tr:hover td{background:#f9f9f9}
     });
   }
 
+  // v0.34.83: importes con coma decimal y punto de miles (1.234,56)
+  function importeEs(v) {
+    var n = Number(v);
+    if (isNaN(n)) { return String(v); }
+    var partes = n.toFixed(2).split('.');
+    partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return partes[0] + ',' + partes[1];
+  }
+
   function cargar() {
     actualizarEnlacesExportacion();
     document.getElementById('filas').innerHTML = '<tr><td colspan="11" class="muted">Cargando…</td></tr>';
@@ -1335,7 +1378,7 @@ tr:hover td{background:#f9f9f9}
               + '<td>' + escapeHtml(r.order_id) + '</td>'
               + '<td>' + escapeHtml(r.tipo_registro) + '</td>'
               + '<td>' + escapeHtml(r.tipo_factura) + (r.tipo_rectificativa ? ' (' + escapeHtml(r.tipo_rectificativa) + ')' : '') + '</td>'
-              + '<td>' + (r.total_factura !== null ? escapeHtml(r.total_factura) + ' €' : '') + '</td>'
+              + '<td>' + (r.total_factura !== null ? escapeHtml(importeEs(r.total_factura)) + ' €' : '') + '</td>'
               + '<td><span class="estado ' + escapeHtml(r.estado_envio) + '">' + escapeHtml(r.estado_envio) + '</span></td>'
               + '<td>' + escapeHtml(r.intentos) + '</td>'
               + '<td title="' + escapeHtml(r.hash_actual) + '">' + escapeHtml((r.hash_actual || '').substring(0, 12)) + '…</td>'
@@ -1889,6 +1932,19 @@ HTML;
         th.style.whiteSpace = 'normal';
       });
 
+      // v0.34.80/81: la columna del campo "Rectificar R1" del listado pasa a llamarse
+      // "Rectificaciones R1" (en dos líneas, Rectifi-/caciones R1) y muestra solo el
+      // número de rectificaciones vigentes de cada pedido (vacía si no tiene ninguna), o
+      // "Anulado" si su factura está anulada (el campo del pedido en sí conserva su nombre: es el que se pone
+      // en Sí para pedir una rectificación).
+      var colRect = -1;
+      tabla.querySelectorAll('th').forEach(function (th) {
+        if (colRect !== -1 || th.textContent.trim().indexOf('Rectificar R1') !== 0) { return; }
+        colRect = Array.prototype.indexOf.call(th.parentNode.children, th);
+        var enlace = th.querySelector('a');
+        (enlace || th).innerHTML = 'Rectifi-<br>caciones R1';
+      });
+
       var filaCabecera = tabla.tHead ? tabla.tHead.rows[0] : tabla.rows[0];
       if (filaCabecera && !filaCabecera.querySelector('.verifactu-col-cabecera')) {
         var esTh = filaCabecera.parentNode && filaCabecera.parentNode.tagName === 'THEAD';
@@ -1912,6 +1968,20 @@ HTML;
         .then(function (resp) {
           var d = unwrap(resp);
           var estados = (d && d.estados) || {};
+          var rectificaciones = (d && d.rectificaciones) || {};
+          var anuladas = (d && d.anuladas) || {};
+          if (colRect >= 0) {
+            filas.forEach(function (f) {
+              var celdaRect = f.tr.children[colRect];
+              if (!celdaRect) { return; }
+              if (anuladas[f.id] || anuladas[String(f.id)]) {
+                celdaRect.innerHTML = '<span style="color:#a01414;font-weight:600">Anulado</span>';
+              } else {
+                var nRect = parseInt(rectificaciones[f.id] || rectificaciones[String(f.id)] || 0, 10);
+                celdaRect.textContent = nRect > 0 ? String(nRect) : '';
+              }
+            });
+          }
           filas.forEach(function (f) {
             var td = tabla.querySelector('td[data-verifactu-order="' + f.id + '"]');
             if (!td) { return; }
@@ -1940,6 +2010,95 @@ HTML;
      * de abono (tipo_abono) es su propia factura rectificativa en HikaShop,
      * así que solo se listan las que no tienen otro documento.
      */
+    /**
+     * v0.34.80/81: para la columna "Rectificaciones R1" del listado de pedidos.
+     * Devuelve, por pedido: el número de rectificaciones por diferencias (R1/R5)
+     * vigentes (aceptadas por la AEAT y no anuladas, mismo criterio que
+     * rectificativasDelPedido()) y si su factura está anulada (el último
+     * movimiento de la factura del pedido, sin contar las rectificativas, es una
+     * anulación aceptada).
+     *
+     * @param int[] $orderIds
+     * @return array{rectificaciones:\stdClass, anuladas:\stdClass} propiedades dinámicas order_id => número / true
+     */
+    private function rectificacionesPorPedido(array $orderIds): array
+    {
+        $rect = new \stdClass();
+        $anul = new \stdClass();
+        $idsSql = implode(',', array_map('intval', $orderIds));
+        if ($idsSql === '') {
+            return ['rectificaciones' => $rect, 'anuladas' => $anul];
+        }
+
+        try {
+            $db = $this->db();
+            $query = $db->getQuery(true)
+                ->select(['id', 'order_id', 'invoice_number', 'tipo_registro', 'tipo_factura', 'tipo_abono', 'factura_rectificada', 'estado_envio'])
+                ->from('#__hikashop_verifactu_registro')
+                ->where('order_id IN (' . $idsSql . ')')
+                ->order('id ASC');
+            $db->setQuery($query);
+            $filas = $db->loadObjectList() ?: [];
+
+            $aceptado = static fn($f): bool => in_array((string) $f->estado_envio, ['aceptado', 'aceptado_con_errores'], true);
+            $esRectificativa = static fn($f): bool => (string) $f->tipo_registro === 'alta'
+                && in_array((string) $f->tipo_factura, ['R1', 'R5'], true)
+                && $f->tipo_abono === null
+                && $f->factura_rectificada !== null
+                && (string) $f->factura_rectificada !== (string) $f->invoice_number;
+
+            $porPedido = [];
+            foreach ($filas as $f) {
+                $porPedido[(int) $f->order_id][] = $f;
+            }
+
+            foreach ($porPedido as $oid => $regs) {
+                $numerosRect = [];
+                foreach ($regs as $f) {
+                    if ($esRectificativa($f)) {
+                        $numerosRect[(string) $f->invoice_number] = true;
+                    }
+                }
+                $anuladasNum = [];
+                foreach ($regs as $f) {
+                    if ((string) $f->tipo_registro === 'anulacion' && $aceptado($f)) {
+                        $anuladasNum[(string) $f->invoice_number] = true;
+                    }
+                }
+
+                $n = 0;
+                foreach ($regs as $f) {
+                    if ($esRectificativa($f) && $aceptado($f) && empty($anuladasNum[(string) $f->invoice_number])) {
+                        $n++;
+                    }
+                }
+                if ($n > 0) {
+                    $rect->{(string) $oid} = $n;
+                }
+
+                // factura del pedido anulada: el último movimiento que no es de una
+                // rectificativa es una anulación aceptada (una R1 anulada no cuenta).
+                $anulada = false;
+                foreach ($regs as $f) {
+                    if ((string) $f->tipo_registro === 'anulacion') {
+                        if (!isset($numerosRect[(string) $f->invoice_number])) {
+                            $anulada = $aceptado($f);
+                        }
+                    } elseif ((string) $f->tipo_registro === 'alta' && !$esRectificativa($f)) {
+                        $anulada = false;
+                    }
+                }
+                if ($anulada) {
+                    $anul->{(string) $oid} = true;
+                }
+            }
+        } catch (\Throwable $e) {
+            self::log('No se pudo calcular las rectificaciones de los pedidos del listado: ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
+        }
+
+        return ['rectificaciones' => $rect, 'anuladas' => $anul];
+    }
+
     private function rectificativasDelPedido(int $orderId, int $id = 0): array
     {
         $db = $this->db();
@@ -2051,21 +2210,108 @@ HTML;
         }
 
         $titulo = $r->tipo_factura === 'R5' ? 'Factura rectificativa simplificada' : 'Factura rectificativa';
-        $emisor = $e($this->params->get('nombre_emisor')) . '<br/>NIF: ' . $e($r->nif_emisor);
-        $direccionTienda = $this->getHikaShopBillingData()['direccion'];
-        if ($direccionTienda !== '') {
-            $emisor .= '<br/>' . nl2br($e($direccionTienda));
+
+        // v0.34.76: mismo diseño que la factura del pedido (plantilla de factura de
+        // HikaShop): mismos textos traducidos, logo y dirección de la tienda de la
+        // configuración, bloques con recuadro y "Información adicional" con los
+        // campos del pedido (p. ej. el comentario). No se modifica ningún dato.
+        // v0.34.79: el resto del documento está en español, así que los títulos solo se
+        // toman de la traducción de HikaShop cuando el idioma del back-end es el español;
+        // con otro idioma se usa el texto español fijo (el documento no queda mezclado).
+        $idiomaEs = false;
+        try {
+            $idiomaEs = stripos((string) \Joomla\CMS\Factory::getApplication()->getLanguage()->getTag(), 'es') === 0;
+        } catch (\Throwable $ex) {
+            $idiomaEs = false;
+        }
+        $t = static function (string $clave, string $porDefecto) use ($idiomaEs): string {
+            if (!$idiomaEs) {
+                return $porDefecto;
+            }
+            try {
+                $v = \Joomla\CMS\Language\Text::_($clave);
+            } catch (\Throwable $ex) {
+                $v = $clave;
+            }
+
+            return ($v === '' || $v === $clave) ? $porDefecto : $v;
+        };
+        $fd = static function (string $fecha): string {
+            $ts = strtotime($fecha);
+
+            return $ts ? date('d-m-Y', $ts) : $fecha;
+        };
+        $pct = static fn($v): string => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
+
+        $config = function_exists('hikashop_config') ? hikashop_config() : null;
+
+        // logo (igual que la factura del pedido)
+        $logo = '';
+        if ($config) {
+            $ruta = trim((string) $config->get('image_address_path', ''));
+            if ($ruta !== '') {
+                if (function_exists('hikashop_cleanURL')) {
+                    $ruta = hikashop_cleanURL($ruta);
+                }
+                $estilo = trim(strip_tags((string) $config->get('img_style_css', '')));
+                $logo = '<div class="hika_invoice_img"><img src="' . $e($ruta) . '" style="' . $e($estilo) . '"></div>';
+            }
+        }
+
+        // emisor: la dirección de la tienda de HikaShop, como en la factura del pedido
+        $emisor = '';
+        if ($config) {
+            $store = str_replace(["\r\n", "\n", "\r"], '<br/>', (string) $config->get('store_address', ''));
+            $emisor = $t($store, $store);
+        }
+        if (trim(strip_tags($emisor)) === '') {
+            $emisor = $e($this->params->get('nombre_emisor'));
+            $direccionTienda = $this->getHikaShopBillingData()['direccion'];
+            if ($direccionTienda !== '') {
+                $emisor .= '<br/>' . nl2br($e($direccionTienda));
+            }
+        }
+        $normaliza = static fn(string $s): string => preg_replace('/[^A-Z0-9]/', '', strtoupper(strip_tags(str_replace('<br/>', ' ', $s))));
+        // v0.34.79: la razón social sale de la dirección de la tienda; si esa dirección no
+        // lleva el nombre configurado en el plugin, se antepone para que nunca falte.
+        $nombreEmisor = trim((string) $this->params->get('nombre_emisor', ''));
+        $normalizaNombre = static fn(string $s): string => preg_replace('/[^\p{L}\p{N}]/u', '', mb_strtolower(strip_tags(str_replace('<br/>', ' ', $s)), 'UTF-8'));
+        if ($nombreEmisor !== '' && strpos($normalizaNombre($emisor), $normalizaNombre($nombreEmisor)) === false) {
+            $emisor = $e($nombreEmisor) . '<br/>' . $emisor;
+        }
+        if ($r->nif_emisor && strpos($normaliza($emisor), $normaliza((string) $r->nif_emisor)) === false) {
+            $emisor .= '<br/>NIF: ' . $e($r->nif_emisor);
+        }
+
+        // "Información adicional": los mismos campos del pedido que muestra la factura (comentario, etc.)
+        $adicional = '';
+        if ($order) {
+            try {
+                $fieldsClass = hikashop_get('class.field');
+                $campos = $fieldsClass->getFields('display:invoice=1', $order, 'order');
+                if (!empty($campos)) {
+                    $filas = '';
+                    foreach ($campos as $nombreCampo => $campo) {
+                        $campo->currentElement = $order;
+                        $filas .= '<tr><td class="key">' . $fieldsClass->getFieldName($campo) . '</td><td>'
+                            . $fieldsClass->show($campo, @$order->$nombreCampo) . '</td></tr>';
+                    }
+                    $adicional = '<fieldset class="adicional"><legend>' . $e($t('ADDITIONAL_INFORMATION', 'Información adicional')) . '</legend>'
+                        . '<table class="campos" width="100%">' . $filas . '</table></fieldset>';
+                }
+            } catch (\Throwable $ex) {
+                $adicional = '';
+            }
         }
 
         $exenta = $r->tipo_iva === null && $r->cuota_iva === null;
         $llevaRecargo = $r->recargo_equivalencia !== null && (float) $r->recargo_equivalencia != 0.0;
-        $cabRecargo = $llevaRecargo ? '<th>Recargo</th>' : '';
-        $celdaRecargo = $llevaRecargo
-            ? '<td>' . $e(self::importeEs((float) $r->recargo_equivalencia)) . ' (' . $e(number_format((float) $r->tipo_recargo, 2, ',', '.')) . ' %)</td>'
+        $filaIva = $exenta
+            ? '<tr><td class="key">IVA</td><td>Exenta (' . $e($r->operacion_exenta) . ')</td></tr>'
+            : '<tr><td class="key">IVA ' . $e($pct($r->tipo_iva)) . '%</td><td>' . $e(self::importeEs((float) $r->cuota_iva)) . '</td></tr>';
+        $filaRecargo = $llevaRecargo
+            ? '<tr><td class="key">Recargo Equivalencia ' . $e($pct($r->tipo_recargo)) . '%</td><td>' . $e(self::importeEs((float) $r->recargo_equivalencia)) . '</td></tr>'
             : '';
-        $celdaIva = $exenta
-            ? '<td>Exenta (' . $e($r->operacion_exenta) . ')</td><td></td>'
-            : '<td>' . $e(number_format((float) $r->tipo_iva, 2, ',', '.')) . ' %</td><td>' . $e(self::importeEs((float) $r->cuota_iva)) . '</td>';
 
         $resultado = $baseResultante !== null
             ? '<p>Base imponible de la factura ' . $e($r->factura_rectificada) . ' tras esta rectificación: <strong>' . $e(self::importeEs($baseResultante)) . '</strong></p>'
@@ -2077,53 +2323,65 @@ HTML;
                 . '<p>Factura verificable en la sede electrónica de la AEAT<br/>VERI*FACTU</p></div>';
         }
 
-        $fechaOriginal = $original ? ' de fecha ' . $e(self::fechaEs((string) $original->invoice_date)) : '';
+        $fechaOriginal = $original ? ' de fecha ' . $e($fd((string) $original->invoice_date)) : '';
         $pedido = $order ? $e($order->order_number) : (string) $orderId;
+
+        $lblFecha = $e($t('DATE', 'Fecha'));
+        $lblFactura = $e($t('INVOICE', 'Factura'));
+        $lblFacturacion = $e($t('HIKASHOP_BILLING_ADDRESS', 'Dirección de facturación'));
+        $lblLista = $e($t('PRODUCT_LIST', 'Lista de productos'));
+        $lblImprimir = $e($t('HIKA_PRINT', 'Imprimir'));
 
         return <<<HTML
 <!doctype html><html lang="es"><head><meta charset="utf-8">
 <title>{$e($titulo)} {$e($r->invoice_number)}</title>
 <style>
-body{font-family:Arial,sans-serif;margin:24px;color:#222;font-size:14px}
-h1{font-size:22px;text-align:center;margin:10px 0 24px;text-transform:uppercase}
-.cab{display:flex;justify-content:space-between;gap:24px;margin-bottom:24px}
-.cab div{flex:1}
-.datos{text-align:right}
-h2{font-size:13px;text-transform:uppercase;color:#555;margin:0 0 6px}
-table{width:100%;border-collapse:collapse;margin:18px 0}
-th,td{border:1px solid #ccc;padding:7px 9px;text-align:right}
-th:first-child,td:first-child{text-align:left}
-th{background:#f3f3f3}
-.qr{width:40mm;text-align:center;margin-top:20px}
+body{font-family:Roboto,"Helvetica Neue",Arial,sans-serif;margin:24px;color:#222;font-size:12px;line-height:1.4}
+h1{font-size:24px;font-weight:400;text-align:center;margin:10px 0 36px;color:#1f2d3d}
+fieldset{border:1px solid #ccc;padding:8px 14px 12px;margin:0 0 14px}
+legend{width:auto;border:0;font-size:15px;padding:0 6px;margin:0;color:#1f2d3d}
+table.lista{width:100%;border-collapse:collapse}
+table.lista th{text-align:left;font-size:14px;padding:8px;border-bottom:2px solid #b8b8b8}
+table.lista td{padding:7px 8px;text-align:left}
+table.lista th:last-child,table.lista td:last-child{text-align:left;width:14%}
+table.lista tbody tr:nth-child(odd){background:#f2f2f2}
+table.lista tr.sub td{border-top:2px solid #b8b8b8}
+td.key{text-align:right;color:#1d3557}
+table.campos td{padding:4px 8px}
+.datos{float:right;width:15em;padding-top:12px}
+.qr{width:40mm;text-align:center;margin-top:18px}
 .qr img{width:40mm;height:40mm}
-.qr p{font-size:10px;margin:4px 0 0}
+.qr p{font-size:9px;margin:4px 0 0}
 #imprimir{float:right}
-@media print{#imprimir{display:none}body{margin:0}}
+@media print{#imprimir{display:none}body{margin:0}fieldset,tr{page-break-inside:avoid}}
 </style></head><body>
-<button id="imprimir" type="button" onclick="window.print()">Imprimir</button>
+<a id="imprimir" href="#" onclick="document.getElementById('imprimir').style.visibility='hidden';window.focus();window.print();return false;">{$lblImprimir}</a>
 <h1>{$e($titulo)}</h1>
-<div class="cab">
-  <div><h2>Emisor</h2>{$emisor}</div>
-  <div class="datos">
-    <strong>Nº {$e($r->invoice_number)}</strong><br/>
-    Fecha de expedición: {$e(self::fechaEs((string) $r->invoice_date))}<br/>
-    Pedido: {$pedido}
-  </div>
+{$logo}
+<div class="datos">
+  {$lblFecha}: {$e($fd((string) $r->invoice_date))}<br/>
+  {$lblFactura}: {$e($r->invoice_number)}<br/>
+  Pedido: {$pedido}
 </div>
-<div class="cab"><div><h2>Destinatario</h2>{$destinatario}</div></div>
+<p>{$emisor}</p>
+<br/><br/>
+<fieldset><legend>{$lblFacturacion}</legend>{$destinatario}</fieldset>
 <p>Rectifica la factura <strong>{$e($r->factura_rectificada)}</strong>{$fechaOriginal}, por diferencias: los importes de este documento son la diferencia que se suma a los de esa factura.</p>
 <p>{$e($descripcion)}</p>
-<table>
-  <thead><tr><th>Concepto</th><th>Base imponible</th><th>IVA</th><th>Cuota IVA</th>{$cabRecargo}<th>Total</th></tr></thead>
-  <tbody><tr>
-    <td>Rectificación de la factura {$e($r->factura_rectificada)}</td>
-    <td>{$e(self::importeEs((float) $r->base_imponible))}</td>
-    {$celdaIva}
-    {$celdaRecargo}
-    <td><strong>{$e(self::importeEs((float) $r->total_factura))}</strong></td>
-  </tr></tbody>
+<fieldset><legend>{$lblLista}</legend>
+<table class="lista">
+  <thead><tr><th>Concepto</th><th>Base imponible</th></tr></thead>
+  <tbody>
+    <tr><td>Rectificación de la factura {$e($r->factura_rectificada)}</td><td>{$e(self::importeEs((float) $r->base_imponible))}</td></tr>
+    <tr class="sub"><td class="key">Subtotal</td><td>{$e(self::importeEs((float) $r->base_imponible))}</td></tr>
+    {$filaIva}
+    {$filaRecargo}
+    <tr><td class="key">Total</td><td><strong>{$e(self::importeEs((float) $r->total_factura))}</strong></td></tr>
+  </tbody>
 </table>
+</fieldset>
 {$resultado}
+{$adicional}
 {$qr}
 </body></html>
 HTML;
@@ -3326,7 +3584,7 @@ JS;
         // como con el motor Html2Pdf/TCPDF del plugin Attach Invoice.
         echo '<div class="verifactu-qr" style="margin-top:15px; text-align:center; width:35mm;">'
             . '<img src="' . $registro->qr_url . '" style="width:35mm; height:35mm;" alt="QR VeriFactu" />'
-            . '<p style="font-size:9px; margin-top:4px; max-width:35mm;">Factura verificable en la sede electrónica de la AEAT — VERIFACTU</p>'
+            . '<p style="font-size:9px; margin-top:4px; max-width:35mm;">Factura verificable en la sede electrónica de la AEAT — VERI*FACTU</p>'
             . '</div>';
     }
 }

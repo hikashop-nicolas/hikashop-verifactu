@@ -358,7 +358,60 @@ class VerifactuLibraryBridge
      */
     public function debeRectificarPorDiferencias($order): bool
     {
-        return $this->esRectificacionPorDiferenciasSolicitada($order);
+        if (!$this->esRectificacionPorDiferenciasSolicitada($order)) {
+            return false;
+        }
+
+        // v0.34.75: tras una rectificación aceptada el campo se queda en Sí
+        // (así el listado de pedidos muestra que el pedido está rectificado)
+        // y los importes se vacían. Un Sí sin "Nueva base" en un pedido que
+        // ya tiene una R1/R5 aceptada es solo esa marca: no es una petición
+        // nueva y guardar el pedido no debe repetir ni dar error.
+        if ($this->getNuevaBaseImponible($order) === null
+            && $this->tieneRectificacionPorDiferenciasAceptada((int) $order->order_id)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * v0.34.75: ¿tiene este pedido alguna rectificación por diferencias
+     * (R1/R5 sobre una factura del mismo pedido) aceptada por la AEAT?
+     */
+    private function tieneRectificacionPorDiferenciasAceptada(int $orderId): bool
+    {
+        try {
+            $aceptado = $this->db->quote('aceptado') . ',' . $this->db->quote('aceptado_con_errores');
+            $query = $this->db->getQuery(true)
+                ->select('COUNT(*)')
+                ->from($this->db->quoteName('#__hikashop_verifactu_registro', 'r'))
+                ->join(
+                    'INNER',
+                    $this->db->quoteName('#__hikashop_verifactu_registro', 'o')
+                    . ' ON o.order_id = r.order_id AND o.invoice_number = r.factura_rectificada'
+                    . ' AND o.invoice_number <> r.invoice_number'
+                    . ' AND o.tipo_registro = ' . $this->db->quote('alta')
+                    . ' AND o.estado_envio IN (' . $aceptado . ')'
+                )
+                ->where('r.order_id = ' . $orderId)
+                ->where('r.tipo_registro = ' . $this->db->quote('alta'))
+                ->where('r.tipo_factura IN (' . $this->db->quote('R1') . ',' . $this->db->quote('R5') . ')')
+                ->where('r.estado_envio IN (' . $aceptado . ')')
+                // v0.34.78: una R1/R5 ya anulada (o sobre una factura anulada) no
+                // cuenta como rectificación válida.
+                ->where(
+                    'NOT EXISTS (SELECT 1 FROM ' . $this->db->quoteName('#__hikashop_verifactu_registro', 'x')
+                    . ' WHERE x.order_id = r.order_id AND x.tipo_registro = ' . $this->db->quote('anulacion')
+                    . ' AND x.estado_envio IN (' . $aceptado . ')'
+                    . ' AND x.invoice_number IN (r.invoice_number, o.invoice_number))'
+                );
+            $this->db->setQuery($query);
+
+            return (int) $this->db->loadResult() > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**
@@ -2304,6 +2357,11 @@ class VerifactuLibraryBridge
 
             VerifactuLog::add('Anulación de la factura ' . $facturaAAnular->invoice_number . ' del pedido ' . $orderId . ': ' . $estado . ($motivo !== '' ? ' (motivo: ' . $motivo . ')' : ''));
 
+            if (in_array($estado, ['aceptado', 'aceptado_con_errores'], true)) {
+                $this->actualizarMarcaRectificado($orderId);
+                $this->reiniciarCampoAnularFactura($orderId);
+            }
+
             return [
                 'estado' => $estado,
                 'csv' => $response->csv ?? null,
@@ -2742,9 +2800,66 @@ class VerifactuLibraryBridge
     }
 
     /**
-     * Una vez aceptada la rectificación por diferencias, el pedido vuelve a
-     * "Rectificar por diferencias" = No y sin importes, para que el siguiente
-     * guardado no la repita.
+     * v0.34.82: una vez aceptada la anulación, el campo "Anular factura" vuelve a No
+     * para que no se quede en Sí y no se intente anular de nuevo en el siguiente
+     * guardado del pedido. Si la AEAT no acepta la anulación el campo se deja en Sí
+     * (junto con el aviso del pedido) para poder corregir y reintentar.
+     */
+    private function reiniciarCampoAnularFactura(int $orderId): void
+    {
+        $nombre = trim((string) $this->params->get('campo_anular_factura', 'verifactu_anular_factura'));
+        if ($nombre === '') {
+            $nombre = 'verifactu_anular_factura';
+        }
+
+        try {
+            $query = $this->db->getQuery(true)
+                ->update('#__hikashop_order')
+                ->set($this->db->quoteName($nombre) . ' = ' . $this->db->quote('No'))
+                ->where('order_id = ' . $orderId);
+            $this->db->setQuery($query);
+            $this->db->execute();
+        } catch (\Throwable $e) {
+            VerifactuLog::add('No se pudo reiniciar el campo Anular factura del pedido ' . $orderId . ': ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
+        }
+    }
+
+    /**
+     * v0.34.78: tras una anulación aceptada, si el pedido ya no tiene ninguna
+     * rectificación por diferencias válida (todas anuladas), el campo
+     * "Rectificar R1" vuelve a No para que el listado de pedidos no lo siga
+     * mostrando como rectificado. Solo se toca ese campo, y solo si estaba en Sí.
+     */
+    private function actualizarMarcaRectificado(int $orderId): void
+    {
+        if ($this->tieneRectificacionPorDiferenciasAceptada($orderId)) {
+            return;
+        }
+
+        $nombre = trim((string) $this->params->get('campo_rectificar_diferencias', 'verifactu_rectificar_diferencias'));
+        if ($nombre === '') {
+            $nombre = 'verifactu_rectificar_diferencias';
+        }
+
+        try {
+            $query = $this->db->getQuery(true)
+                ->update('#__hikashop_order')
+                ->set($this->db->quoteName($nombre) . ' = ' . $this->db->quote('No'))
+                ->where('order_id = ' . $orderId)
+                ->where($this->db->quoteName($nombre) . ' = ' . $this->db->quote('Sí'));
+            $this->db->setQuery($query);
+            $this->db->execute();
+        } catch (\Throwable $e) {
+            VerifactuLog::add('No se pudo actualizar la marca de rectificado del pedido ' . $orderId . ': ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
+        }
+    }
+
+    /**
+     * Una vez aceptada la rectificación por diferencias se vacían los tres
+     * importes, para que el siguiente guardado no la repita. v0.34.75: el
+     * campo "Rectificar R1" se deja en Sí (antes volvía a No) para que el
+     * listado de pedidos muestre que el pedido está rectificado; ver
+     * debeRectificarPorDiferencias().
      */
     private function limpiarCamposRectificacion(int $orderId): void
     {
@@ -2757,7 +2872,7 @@ class VerifactuLibraryBridge
         try {
             $query = $this->db->getQuery(true)
                 ->update('#__hikashop_order')
-                ->set($this->db->quoteName($campo('campo_rectificar_diferencias', 'verifactu_rectificar_diferencias')) . ' = ' . $this->db->quote('No'))
+                ->set($this->db->quoteName($campo('campo_rectificar_diferencias', 'verifactu_rectificar_diferencias')) . ' = ' . $this->db->quote('Sí'))
                 ->set($this->db->quoteName($campo('campo_nueva_base_imponible', 'verifactu_nueva_base_imponible')) . ' = NULL')
                 ->set($this->db->quoteName($campo('campo_nuevo_tipo_iva', 'verifactu_nuevo_tipo_iva')) . ' = NULL')
                 ->set($this->db->quoteName($campo('campo_nuevo_tipo_recargo', 'verifactu_nuevo_tipo_recargo')) . ' = NULL')

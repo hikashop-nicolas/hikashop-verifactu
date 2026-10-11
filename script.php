@@ -216,6 +216,9 @@ class PlgHikashopVerifactuInstallerScript
             if ($this->versionAnterior === '' || version_compare($this->versionAnterior, '0.34.73', '<')) {
                 $this->renombrarCamposAbonoCortos();
             }
+            if ($this->versionAnterior === '' || version_compare($this->versionAnterior, '0.34.75', '<')) {
+                $this->marcarPedidosRectificadosR1();
+            }
         }
 
         $this->installLayout($parent);
@@ -569,6 +572,34 @@ class PlgHikashopVerifactuInstallerScript
         }
     }
 
+
+    /**
+     * v0.34.75: hasta ahora el campo "Rectificar R1" volvía a No al aceptarse
+     * la rectificación. Una sola vez, se pone en Sí en los pedidos que ya
+     * tienen una R1/R5 por diferencias aceptada sobre una factura propia.
+     */
+    private function marcarPedidosRectificadosR1(): void
+    {
+        try {
+            $db = \Joomla\CMS\Factory::getContainer()->get('DatabaseDriver');
+            $reg = $db->quoteName($db->getPrefix() . 'hikashop_verifactu_registro');
+            $ok = $db->quote('aceptado') . ',' . $db->quote('aceptado_con_errores');
+            $db->setQuery(
+                'UPDATE ' . $db->quoteName('#__hikashop_order') . ' AS h SET h.' . $db->quoteName('verifactu_rectificar_diferencias') . ' = ' . $db->quote('Sí')
+                . ' WHERE h.order_id IN (SELECT x.order_id FROM (SELECT r.order_id FROM ' . $reg . ' r'
+                . ' INNER JOIN ' . $reg . ' o ON o.order_id = r.order_id AND o.invoice_number = r.factura_rectificada AND o.invoice_number <> r.invoice_number'
+                . ' AND o.tipo_registro = ' . $db->quote('alta') . ' AND o.estado_envio IN (' . $ok . ')'
+                . ' WHERE r.tipo_registro = ' . $db->quote('alta') . ' AND r.tipo_factura IN (' . $db->quote('R1') . ',' . $db->quote('R5') . ')'
+                . ' AND r.estado_envio IN (' . $ok . ')) AS x)'
+            );
+            $db->execute();
+        } catch (\Throwable $e) {
+            \Joomla\CMS\Factory::getApplication()->enqueueMessage(
+                'VeriFactu: no se pudo marcar "Rectificar R1" en los pedidos ya rectificados (' . $e->getMessage() . ').',
+                'warning'
+            );
+        }
+    }
 
     /**
      * v0.34.72: "Comentario del abono" tampoco se muestra por defecto en el
