@@ -5,7 +5,7 @@
     <creationDate>28/09/2026</creationDate>
     <copyright>Custom</copyright>
     <license>GPLv3</license>
-    <version>0.34.83</version>
+    <version>0.34.92</version>
     <description>Integración de VeriFactu (AEAT) con HikaShop: facturación, QR, envío AEAT, declaración responsable y condiciones de uso.</description>
 
     <scriptfile>script.php</scriptfile>
@@ -96,6 +96,8 @@
                 <field name="declaracion_version" type="text" label="Versión del sistema declarada" default="" readonly="true" description="Se obtiene automáticamente de la versión actual del plugin y no puede modificarse aquí." />
 
                 <field name="registro_separador" type="registrolink" label="Registro de facturación (consulta y exportación)" />
+
+                <field name="copia_registro_separador" type="copiaregistro" label="Copia de seguridad del registro (descargar / restaurar)" />
 
             </fieldset>
         </fields>

@@ -1,10 +1,10 @@
 Manual de instalación y configuración
 
-PLG_HIKASHOP_VERIFACTU v0.34.73
+PLG_HIKASHOP_VERIFACTU v0.34.91
 
 1. Introducción
 
-Este manual explica la instalación y configuración del plugin PLG_HIKASHOP_VERIFACTU v0.34.73 para
+Este manual explica la instalación y configuración del plugin PLG_HIKASHOP_VERIFACTU v0.34.91 para
 Joomla + HikaShop.
 
 El plugin integra HikaShop con el sistema VERI*FACTU de la Agencia Estatal de Administración
@@ -141,7 +141,7 @@ En el administrador de Joomla:
 
 Extensiones → Gestionar → Instalar
 
-1.  Selecciona el archivo ZIP de PLG_HIKASHOP_VERIFACTU v0.34.73.
+1.  Selecciona el archivo ZIP de PLG_HIKASHOP_VERIFACTU v0.34.91.
 
 2.  Sube el paquete.
 
@@ -150,7 +150,7 @@ Extensiones → Gestionar → Instalar
 No es necesario ejecutar manualmente comandos Composer ni modificar archivos del plugin después de
 la instalación.
 
-Importante: la versión v0.34.73 debe instalarse utilizando el paquete proporcionado. No deben
+Importante: la versión v0.34.91 debe instalarse utilizando el paquete proporcionado. No deben
 aplicarse manualmente los parches de versiones anteriores descritos en manuales antiguos.
 
 5. Configurar el plugin
@@ -221,7 +221,7 @@ por menor a consumidor final (B2C).
 
 6. Información y control de la caducidad del certificado
 
-La versión v0.34.73 incorpora información sobre la fecha de caducidad del certificado digital.
+La versión v0.34.91 incorpora información sobre la fecha de caducidad del certificado digital.
 
 Una vez que el certificado es reconocido correctamente, el plugin puede mostrar su fecha de
 caducidad dentro de la configuración.
@@ -974,7 +974,7 @@ El registro permite consultar, según corresponda:
 
 18. Descarga del registro de facturación
 
-La versión v0.34.73 incorpora una opción de descarga del registro.
+La versión v0.34.91 incorpora una opción de descarga del registro.
 
 Esta función permite obtener el registro asociado al proceso de facturación desde el propio sistema.
 
@@ -1036,7 +1036,7 @@ El administrador debe renovar el certificado antes de su fecha de caducidad.
 
 21. Funciones NO contempladas en el plugin
 
-La v0.34.73 debe considerarse un sistema específico para el flujo VERI*FACTU implementado en
+La v0.34.91 debe considerarse un sistema específico para el flujo VERI*FACTU implementado en
 HikaShop.
 
 No están contempladas las siguientes funciones:
@@ -1104,7 +1104,7 @@ correspondientes.
 
 21.5. Instalación manual mediante SSH o Composer
 
-La instalación normal de la v0.34.73 no requiere que el usuario:
+La instalación normal de la v0.34.91 no requiere que el usuario:
 
 -   ejecute composer install;
 
@@ -1117,7 +1117,7 @@ La instalación normal de la v0.34.73 no requiere que el usuario:
 -   modifique archivos internos del plugin.
 
 Estas instrucciones pertenecían a procedimientos de versiones anteriores y no forman parte del
-procedimiento normal de instalación de la v0.34.73.
+procedimiento normal de instalación de la v0.34.91.
 
 21.6. Modificación manual de Attach Invoice
 
@@ -1128,11 +1128,11 @@ plugins/hikashop/attachinvoice/attachinvoice/invoice.php
 para instalar el plugin.
 
 Los antiguos manuales incluían un bloque de código para insertar manualmente el QR en esa plantilla.
-Ese procedimiento no debe formar parte del procedimiento de instalación de la v0.34.73.
+Ese procedimiento no debe formar parte del procedimiento de instalación de la v0.34.91.
 
 21.7. Operaciones fiscales no contempladas específicamente
 
-La versión v0.34.73 no contempla específicamente la gestión de las siguientes operaciones fiscales:
+La versión v0.34.91 no contempla específicamente la gestión de las siguientes operaciones fiscales:
 
 -   OSS / IOSS — ventas B2C a consumidores de otros países de la Unión Europea en las que
     corresponda aplicar el IVA del país de destino mediante los regímenes OSS/IOSS.
@@ -1258,7 +1258,7 @@ Mantén una copia de seguridad segura del certificado y conserva la contraseña 
 
 24. Modalidad de funcionamiento
 
-La v0.34.73 está diseñada para trabajar en modalidad:
+La v0.34.91 está diseñada para trabajar en modalidad:
 
 VERI*FACTU
 
@@ -1354,3 +1354,87 @@ Una vez configurado correctamente el sistema:
 -   El usuario recibe avisos por correo electrónico antes de la caducidad del certificado.
 
 -   El sistema funciona en modalidad VERI*FACTU con remisión a la AEAT.
+
+27. Copia de seguridad y traspaso del registro a otra web
+
+Desde la versión 0.34.88, la configuración del plugin incluye el bloque "Copia de seguridad del registro (descargar / restaurar)", con los botones "Descargar copia" y "Subir copia y restaurar…". Sirve para pasar el registro VeriFactu de una web a otra (por ejemplo, al rehacer la tienda) sin tocar la base de datos a mano. Solo pueden usarlo los superadministradores.
+
+La copia es un único fichero (.json.gz) con:
+
+-   Los registros de facturación (tabla de registros, con los hashes y la cadena).
+
+-   La numeración asignada a cada pedido y los contadores de las series.
+
+-   La declaración responsable.
+
+-   Los prefijos de las series (F1, F2, R y F3) de este plugin. El último número usado de cada serie va en los contadores.
+
+No incluye ningún otro ajuste del plugin (NIF del emisor, entorno de envío, campos HikaShop, etc.): hay que volver a introducirlos a mano en la web nueva. Tampoco incluye pedidos, clientes ni facturas de HikaShop.
+
+Orden recomendado en la web nueva:
+
+-   Instalar HikaShop.
+
+-   Instalar este plugin (la misma versión que en la web antigua o una más reciente), para que se creen sus tablas y campos personalizados de pedido.
+
+-   Traer los pedidos con el importador de HikaShop, sin borrar su tabla de equivalencias (#__hikashop_hkimport_order).
+
+-   Introducir a mano los demás ajustes del plugin.
+
+-   Subir la copia con "Subir copia y restaurar…".
+
+Pasos de la restauración:
+
+-   Hacer antes una copia de seguridad de la base de datos de la web nueva.
+
+-   Pulsar "Subir copia y restaurar…", elegir el fichero y pulsar "Comprobar copia". Se muestra un resumen (número de registros, última factura, contadores, avisos) y se comparan los ajustes de numeración de la copia con los actuales. No se cambia nada.
+
+-   Dejar marcada la reasignación de números de pedido si los pedidos se trajeron con el importador de HikaShop: el importador no conserva el número de pedido, y la reasignación enlaza cada registro con su pedido nuevo.
+
+-   Si todo es correcto, marcar la casilla de confirmación y pulsar "Restaurar ahora". La casilla "Aplicar también los prefijos de las series" (marcada por defecto) escribe los prefijos en el plugin y deja vacíos los "Número inicial manual", porque los contadores se restauran con el registro. Si en la web nueva NO se restauran los contadores, el botón "Aplicar ajustes de numeración" escribe los prefijos y, en cada "Número inicial manual", el último número usado de esa serie, leído de los contadores de la copia (solo si son del año en curso; el plugin suma 1, así que con 0284 la primera factura será la 0285).
+
+-   Al cerrar la ventana, la página de configuración se recarga sola. No pulsar "Guardar" en una pantalla de configuración antigua que siga abierta, porque escribiría de nuevo los valores anteriores.
+
+Reglas de seguridad:
+
+-   Solo se restaura si las tablas de registros y de numeración asignada de la web están vacías, para no mezclar dos historiales.
+
+-   Si algo falla durante la restauración, se deshacen todos los cambios.
+
+-   El fichero subido se guarda temporalmente en la carpeta tmp del sitio y se borra al restaurar o al cancelar.
+
+-   Los "Número inicial manual" los usa el plugin para crear el contador de una serie y año que todavía no existe. Si se restaura también el registro, los contadores van en la copia y la numeración continúa sola. Si se han rellenado a mano, vaciarlos cuando la web ya haya emitido una factura de cada serie y, en cualquier caso, antes del 1 de enero: si siguen rellenos, la primera factura del año nuevo continuaría desde ese número en lugar de empezar en 0001.
+
+Advertencias:
+
+-   Después de restaurar, la web antigua no debe seguir emitiendo facturas: si ambas webs emiten sobre el mismo registro, la cadena de hashes se bifurca y la numeración se duplica.
+
+-   Este plugin no puede asegurar que la AEAT admita que una instalación nueva continúe la misma cadena de registros. Debe consultarse con el asesor fiscal o con la AEAT.
+
+-   La numeración nativa de HikaShop (F1) la gestiona HikaShop: tras importar, comprobar que el siguiente número continúa tras el último.
+
+-   Si el fichero supera el límite de subida del servidor (upload_max_filesize y post_max_size), pedir al hosting que lo aumente.
+
+Fin de año y los "Número inicial manual":
+
+El plugin lleva un contador por serie y año. Los campos "Número inicial manual" (F1, F2, F3 y R) los usa para cualquier serie y año que todavía no tenga contador, así que en enero influyen en la primera factura de cada serie del año nuevo.
+
+Desde la versión 0.34.92, la nota "Fin de año" del mismo bloque tiene dos botones:
+
+-   "Vaciar los campos": deja vacíos los cuatro "Número inicial manual". El año nuevo empieza en 0001.
+
+-   "Dejar el último número de <año>": rellena cada campo con el último número de su serie en el año en curso, leído de la tabla de contadores, sin sumar 1 (el plugin suma 1 al crear la serie del año nuevo). Una serie que no haya emitido facturas ese año queda vacía.
+
+Ambos botones guardan directamente en el plugin y actualizan los campos del formulario abierto. Solo los puede usar un superadministrador. Hay que pulsarlos después de emitir la última factura del año y antes de la primera del año siguiente. Cuando cada serie haya emitido su primera factura del año nuevo, conviene vaciar los campos.
+
+Aviso de fin de año: si la numeración propia está activada, del 20 al 31 de diciembre el plugin envía un email (una sola vez por año) al "Email para avisos de caducidad" del plugin (o al correo del sitio Joomla si ese campo está vacío) y muestra un mensaje de advertencia en el panel de inicio de Joomla, con un enlace a la configuración del plugin. El email y el mensaje dejan de aparecer cuando se pulsa uno de los dos botones en esos días.
+
+La copia de seguridad está pensada para una instalación nueva en la que no se han importado las facturas antiguas: en la web nueva se sube el fichero para restaurar el registro, los contadores y los prefijos de las series.
+
+-   Para que el año nuevo empiece en 0001 (por ejemplo 27-0001): vaciar los cuatro campos antes del 1 de enero.
+
+-   Para continuar la numeración (por ejemplo, tras la 26-0320, que la primera de 2027 sea la 27-0321): dejar en cada campo el último número del año que termina, sin sumar 1. Se puede leer en la tabla de contadores, o descargar una copia el 31 de diciembre después de la última factura y usar "Subir copia y restaurar…", "Comprobar copia" y "Aplicar ajustes de numeración" (solo rellena los campos si la copia es del año en curso). Vaciar los campos cuando cada serie haya emitido su primera factura del año nuevo; si no, el año siguiente volverían a empezar desde ese número.
+
+-   Si los campos se dejan con otro valor, el año nuevo empezará en ese número más uno (por ejemplo, 27-0285 con 0284).
+
+Conviene elegir el criterio que corresponda a la numeración de facturas de cada negocio y, ante dudas, consultarlo con el asesor.

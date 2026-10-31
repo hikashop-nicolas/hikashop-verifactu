@@ -168,6 +168,18 @@ class PlgHikashopVerifactuInstallerScript
             `created` DATETIME NOT NULL,
             PRIMARY KEY (`id`),
             KEY `idx_order_id` (`order_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+        // v0.34.92: estado por año del aviso de fin de año sobre los "Número
+        // inicial manual" (ver src/VerifactuFinAnio.php): si ya se envió el
+        // email y si el propietario ya pulsó uno de los dos botones. Va en una
+        // tabla propia porque los parámetros del plugin que no están en el
+        // formulario se pierden al pulsar Guardar.
+        'hikashop_verifactu_aviso_fin_anio' => "CREATE TABLE IF NOT EXISTS `%s` (
+            `anio` VARCHAR(4) NOT NULL,
+            `email_enviado` DATETIME NULL,
+            `gestionado` DATETIME NULL,
+            `accion` VARCHAR(20) NULL,
+            PRIMARY KEY (`anio`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     ];
 
@@ -584,8 +596,29 @@ class PlgHikashopVerifactuInstallerScript
             $db = \Joomla\CMS\Factory::getContainer()->get('DatabaseDriver');
             $reg = $db->quoteName($db->getPrefix() . 'hikashop_verifactu_registro');
             $ok = $db->quote('aceptado') . ',' . $db->quote('aceptado_con_errores');
+
+            // v0.34.84: nombre del campo según el parámetro "campo_rectificar_diferencias"
+            // (el mismo que usa el puente), no el nombre por defecto fijo. Si se
+            // ha renombrado el campo, la marca debe ir al campo configurado.
+            $nombreCampo = 'verifactu_rectificar_diferencias';
+            $paramsJson = $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('params'))
+                    ->from($db->quoteName('#__extensions'))
+                    ->where($db->quoteName('type') . ' = ' . $db->quote('plugin'))
+                    ->where($db->quoteName('element') . ' = ' . $db->quote('verifactu'))
+                    ->where($db->quoteName('folder') . ' = ' . $db->quote('hikashop'))
+            )->loadResult();
+            $paramsCfg = json_decode((string) ($paramsJson ?? '{}'), true);
+            if (is_array($paramsCfg)) {
+                $configurado = trim((string) ($paramsCfg['campo_rectificar_diferencias'] ?? ''));
+                if ($configurado !== '' && preg_match('/^[A-Za-z0-9_]+$/', $configurado)) {
+                    $nombreCampo = $configurado;
+                }
+            }
+
             $db->setQuery(
-                'UPDATE ' . $db->quoteName('#__hikashop_order') . ' AS h SET h.' . $db->quoteName('verifactu_rectificar_diferencias') . ' = ' . $db->quote('Sí')
+                'UPDATE ' . $db->quoteName('#__hikashop_order') . ' AS h SET h.' . $db->quoteName($nombreCampo) . ' = ' . $db->quote('Sí')
                 . ' WHERE h.order_id IN (SELECT x.order_id FROM (SELECT r.order_id FROM ' . $reg . ' r'
                 . ' INNER JOIN ' . $reg . ' o ON o.order_id = r.order_id AND o.invoice_number = r.factura_rectificada AND o.invoice_number <> r.invoice_number'
                 . ' AND o.tipo_registro = ' . $db->quote('alta') . ' AND o.estado_envio IN (' . $ok . ')'

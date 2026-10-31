@@ -54,6 +54,15 @@ CREATE TABLE IF NOT EXISTS `#__hikashop_verifactu_contador` (
     PRIMARY KEY (`familia`, `anio`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- v0.34.92: estado por año del aviso de fin de año (email enviado / acción hecha).
+CREATE TABLE IF NOT EXISTS `#__hikashop_verifactu_aviso_fin_anio` (
+    `anio` VARCHAR(4) NOT NULL,
+    `email_enviado` DATETIME NULL,
+    `gestionado` DATETIME NULL,
+    `accion` VARCHAR(20) NULL,
+    PRIMARY KEY (`anio`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Guarda qué número propio se le asignó a cada pedido, para que un reintento
 -- (ej. tras corregir el NIF) reutilice el mismo número en vez de consumir
 -- otro de la serie.

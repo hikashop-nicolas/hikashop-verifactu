@@ -505,6 +505,23 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
 
         $task = \Joomla\CMS\Factory::getApplication()->input->getCmd('task', 'declaracion');
 
+        // v0.34.88: copia de seguridad y restauración del registro (tareas backup_*).
+        // La clase comprueba por su cuenta que el usuario sea superadministrador.
+        if (strpos($task, 'backup_') === 0) {
+            require_once __DIR__ . '/src/VerifactuBackup.php';
+
+            return VerifactuBackup::dispatch($task);
+        }
+
+        // v0.34.92: botones de fin de año (vaciar / dejar el último número) de
+        // la configuración del plugin. La clase comprueba el token y que el
+        // usuario sea superadministrador.
+        if (strpos($task, 'finanio_') === 0) {
+            require_once __DIR__ . '/src/VerifactuFinAnio.php';
+
+            return VerifactuFinAnio::dispatch($task);
+        }
+
         // Tabla de ayuda "Acciones Veri*Factu", abierta desde el botón del
         // listado de pedidos (HikaShop → Pedidos → Compras). No depende de
         // ningún pedido concreto: es contenido de referencia estático.
@@ -849,10 +866,12 @@ class plgHikashopVerifactu extends \Joomla\CMS\Plugin\CMSPlugin
      * fila en memoria para deducirla).
      */
     private const REGISTRO_CSV_COLUMNAS = [
-        'id', 'order_id', 'invoice_number', 'invoice_date', 'nif_emisor', 'total_factura',
-        'base_imponible', 'tipo_iva', 'cuota_iva', 'tipo_recargo', 'recargo_equivalencia', 'tipo_abono',
+        'id', 'order_id', 'invoice_number', 'invoice_date', 'nif_emisor', 'total_factura', 'tipo_abono',
         'tipo_factura', 'tipo_rectificativa', 'factura_rectificada', 'tipo_registro', 'motivo_anulacion',
         'registro_anterior_id', 'hash_anterior', 'hash_actual', 'qr_url', 'estado_envio', 'intentos', 'created', 'modified',
+        // v0.34.84: columnas añadidas después, al final para no desplazar las posiciones
+        // de quien importa el CSV por posición.
+        'base_imponible', 'tipo_iva', 'cuota_iva', 'tipo_recargo', 'recargo_equivalencia',
     ];
 
     /**
@@ -1541,6 +1560,16 @@ HTML;
         // que no tengan Joomla completamente disponible.
         try {
             $app = \Joomla\CMS\Factory::getApplication();
+
+            // v0.34.92: aviso de fin de año (email, en cualquier petición, y
+            // mensaje en el panel de inicio de Joomla). Fallar aquí nunca debe
+            // afectar al resto de avisos ni a la página.
+            try {
+                $this->avisarFinDeAnio($app);
+            } catch (\Throwable $e) {
+                self::log('Aviso de fin de año: ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
+            }
+
             if (!$app->isClient('administrator')) {
                 return;
             }
@@ -1829,7 +1858,22 @@ HTML;
             // añade por JavaScript en cada carga de la página, así que
             // siempre está.
             if ($esListado && stripos($body, 'verifactu-col-estado-script') === false) {
-                $script .= self::scriptColumnaEstadoListado();
+                $script .= self::scriptColumnaEstadoListado(
+                    $this->nombreCampoSeguro('campo_rectificar_diferencias', 'verifactu_rectificar_diferencias')
+                );
+            }
+            // v0.34.85: en el popup "Información adicional" (task=edit&subtask=additional),
+            // si el pedido ya tiene una R1/R5 aceptada, aviso junto al botón "Guardar"
+            // cuando "Rectificar R1" está en Sí y "Nueva base" está vacía.
+            if ($esInfoAdicional && stripos($body, 'verifactu-aviso-rectificar-script') === false) {
+                $cid = $input->get('cid', [], 'array');
+                $orderIdAviso = (int) (is_array($cid) ? reset($cid) : $cid) ?: $input->getInt('order_id');
+                if ($orderIdAviso > 0 && $this->rectificativasDelPedido($orderIdAviso)) {
+                    $script .= self::scriptAvisoRectificarAdicional(
+                        $this->nombreCampoSeguro('campo_rectificar_diferencias', 'verifactu_rectificar_diferencias'),
+                        $this->nombreCampoSeguro('campo_nueva_base_imponible', 'verifactu_nueva_base_imponible')
+                    );
+                }
             }
             if ($esPedido && stripos($body, 'verifactu-rectificativas-script') === false) {
                 $cid = $input->get('cid', [], 'array');
@@ -1849,6 +1893,131 @@ HTML;
         } catch (\Throwable $e) {
             self::log('Error inyectando contenido de VeriFactu vía onAfterRender: ' . $e->getMessage(), \Joomla\CMS\Log\Log::WARNING);
         }
+    }
+
+    /**
+     * v0.34.85: nombre interno de un campo personalizado según su parámetro del plugin
+     * (el mismo que usa el puente), o el nombre por defecto si está vacío o no es un
+     * nombre válido. Solo letras, números y guion bajo: se usa dentro de JavaScript.
+     */
+    private function nombreCampoSeguro(string $paramKey, string $defecto): string
+    {
+        $nombre = trim((string) $this->params->get($paramKey, $defecto));
+
+        return ($nombre !== '' && preg_match('/^[A-Za-z0-9_]+$/', $nombre)) ? $nombre : $defecto;
+    }
+
+    /**
+     * v0.34.85: aviso junto al botón "Guardar" del popup "Información adicional".
+     * Solo se genera para pedidos que ya tienen una R1/R5 aceptada. En el navegador
+     * se muestra mientras "Rectificar R1" esté en Sí y "Nueva base" esté vacía (se
+     * actualiza al cambiar los campos): en ese caso, guardar no envía ninguna
+     * rectificación. Si los campos o el botón no se encuentran, no hace nada.
+     */
+    private static function scriptAvisoRectificarAdicional(string $campoRectificar, string $campoBase): string
+    {
+        $flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+        $nombreRectJs = json_encode('data[orderfields][' . $campoRectificar . ']', $flags);
+        $nombreBaseJs = json_encode('data[orderfields][' . $campoBase . ']', $flags);
+
+        return <<<HTML
+<script id="verifactu-aviso-rectificar-script">
+(function () {
+  try {
+    var NOMBRE_RECT = {$nombreRectJs};
+    var NOMBRE_BASE = {$nombreBaseJs};
+    var ID = 'verifactu-aviso-rectificar-r1';
+    // [negrita, texto]
+    var PARTES = [
+      [true, '\u26a0 Atenci\u00f3n: '],
+      [false, 'si quiere rectificar de nuevo, '],
+      [true, 'debe poner una nueva base imponible'],
+      [false, '. Con \u00abNueva base\u00bb en blanco '],
+      [true, 'no se enviar\u00e1 ninguna rectificaci\u00f3n'],
+      [false, '.']
+    ];
+
+    function campos(nombre) {
+      return document.querySelectorAll('[name="' + nombre + '"]');
+    }
+
+    function valorRectificar() {
+      var els = campos(NOMBRE_RECT);
+      if (!els.length) { return null; }
+      var valor = '';
+      Array.prototype.forEach.call(els, function (el) {
+        if (el.type === 'radio' || el.type === 'checkbox') {
+          if (el.checked) { valor = el.value; }
+        } else if (el.tagName === 'SELECT') {
+          var op = el.options[el.selectedIndex];
+          valor = (op ? (op.value !== '' ? op.value : op.text) : '');
+        } else {
+          valor = el.value;
+        }
+      });
+      return String(valor).trim().toLowerCase().replace('\u00ed', 'i');
+    }
+
+    function actualizar() {
+      var aviso = document.getElementById(ID);
+      if (!aviso) { return; }
+      var rect = valorRectificar();
+      var base = campos(NOMBRE_BASE);
+      var visible = rect !== null && base.length > 0
+        && ['1', 'yes', 'si', 'true'].indexOf(rect) !== -1
+        && String(base[0].value).trim() === '';
+      aviso.style.display = visible ? 'inline-block' : 'none';
+    }
+
+    function iniciar() {
+      if (document.getElementById(ID)) { return true; }
+      var form = document.getElementById('hikashop_order_additional_form');
+      if (!form) { return false; }
+
+      var guardar = null;
+      var enlaces = form.querySelectorAll('a.btn-success');
+      Array.prototype.forEach.call(enlaces, function (a) {
+        var oc = a.getAttribute('onclick') || '';
+        if (oc.indexOf('hikashop_order_notify') === -1 && oc.indexOf("submitform('save'") !== -1) { guardar = a; }
+      });
+      if (!guardar && enlaces.length) { guardar = enlaces[enlaces.length - 1]; }
+      if (!guardar) { return false; }
+
+      var aviso = document.createElement('span');
+      aviso.id = ID;
+      aviso.setAttribute('role', 'alert');
+      PARTES.forEach(function (p) {
+        var nodo = document.createElement(p[0] ? 'strong' : 'span');
+        nodo.textContent = p[1];
+        aviso.appendChild(nodo);
+      });
+      aviso.style.cssText = 'display:none;margin-left:12px;padding:10px 14px;border:2px solid #c2410c;border-left:8px solid #c2410c;background:#ffedd5;color:#7c2d12;border-radius:6px;font-size:15px;line-height:1.45;max-width:580px;vertical-align:middle;white-space:normal;box-shadow:0 2px 6px rgba(194,65,12,.25);';
+      guardar.insertAdjacentElement('afterend', aviso);
+
+      ['change', 'input', 'keyup'].forEach(function (ev) { form.addEventListener(ev, actualizar); });
+      actualizar();
+      return true;
+    }
+
+    function arrancar() {
+      if (iniciar()) { return; }
+      if (typeof MutationObserver === 'function') {
+        var obs = new MutationObserver(function () { if (iniciar()) { obs.disconnect(); } });
+        obs.observe(document.documentElement || document.body, { childList: true, subtree: true });
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', arrancar);
+    } else {
+      arrancar();
+    }
+  } catch (e) {
+    // el aviso es solo informativo: nunca debe romper el popup
+  }
+})();
+</script>
+HTML;
     }
 
     /**
@@ -1876,8 +2045,12 @@ HTML;
      * hace nada: el listado se queda exactamente como sin este script, sin
      * ningún error visible para el usuario.
      */
-    private static function scriptColumnaEstadoListado(): string
+    private static function scriptColumnaEstadoListado(string $campoRectificar = 'verifactu_rectificar_diferencias'): string
     {
+        // v0.34.84: HikaShop da a cada cabecera de campo personalizado la clase
+        // hikashop_order_<nombre del campo>_title: es estable aunque el campo se
+        // traduzca o cambie de etiqueta. El texto "Rectificar R1" queda de respaldo.
+        $claseRectJs = json_encode('hikashop_order_' . $campoRectificar . '_title', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
         $ajaxUrl = 'index.php?option=com_ajax&group=hikashop&plugin=verifactu&format=json&task=estados_pedidos';
 
         return <<<HTML
@@ -1938,8 +2111,12 @@ HTML;
       // "Anulado" si su factura está anulada (el campo del pedido en sí conserva su nombre: es el que se pone
       // en Sí para pedir una rectificación).
       var colRect = -1;
+      var claseRect = {$claseRectJs};
       tabla.querySelectorAll('th').forEach(function (th) {
-        if (colRect !== -1 || th.textContent.trim().indexOf('Rectificar R1') !== 0) { return; }
+        if (colRect !== -1) { return; }
+        var porClase = !!(th.classList && th.classList.contains(claseRect));
+        var porTexto = th.textContent.trim().indexOf('Rectificar R1') === 0;
+        if (!porClase && !porTexto) { return; }
         colRect = Array.prototype.indexOf.call(th.parentNode.children, th);
         var enlace = th.querySelector('a');
         (enlace || th).innerHTML = 'Rectifi-<br>caciones R1';
@@ -2385,6 +2562,130 @@ table.campos td{padding:4px 8px}
 {$qr}
 </body></html>
 HTML;
+    }
+
+    /**
+     * v0.34.92: aviso de fin de año sobre los «Número inicial manual».
+     *
+     * Del 20 al 31 de diciembre, si la numeración propia está activada y el propietario todavía
+     * no ha pulsado ninguno de los dos botones de fin de año de la configuración del plugin:
+     *  - se le envía UN email (al mismo destinatario que los avisos de caducidad del
+     *    certificado: «Email para avisos de caducidad», o el correo del sitio Joomla si está
+     *    vacío), diciéndole que la acción debe hacerse después de la última factura del año;
+     *  - cada vez que un superadministrador abre el panel de inicio de Joomla se muestra un
+     *    mensaje que indica que hay que tomar una acción en este plugin.
+     *
+     * Un marcador diario en tmp evita consultar la base de datos en cada petición.
+     */
+    private function avisarFinDeAnio($app): void
+    {
+        require_once __DIR__ . '/src/VerifactuFinAnio.php';
+
+        if (!VerifactuFinAnio::ventanaActiva()
+            || (string) $this->params->get('numeracion_propia_activa', '0') !== '1') {
+            return;
+        }
+
+        $esAdmin = $app->isClient('administrator');
+        $enPanelInicio = $esAdmin && $app->input->getCmd('option') === 'com_cpanel';
+        $marca = rtrim((string) $app->get('tmp_path', JPATH_ROOT . '/tmp'), '/\\') . '/verifactu_finanio_' . date('Ymd');
+        $intentarEmail = !is_file($marca);
+        if (!$intentarEmail && !$enPanelInicio) {
+            return;
+        }
+
+        $db = $this->db();
+        $anio = date('Y');
+        $estado = VerifactuFinAnio::estado($db, $anio);
+        if ($estado['gestionado']) {
+            @touch($marca);
+
+            return;
+        }
+
+        if ($enPanelInicio) {
+            // usuario de la sesión (como en onAjaxVerifactu): en onAfterInitialise la identidad
+            // de la aplicación puede no estar cargada todavía
+            $user = \Joomla\CMS\Factory::getUser();
+            if ($user && !$user->guest && $user->authorise('core.admin')) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select($db->quoteName('extension_id'))
+                        ->from($db->quoteName('#__extensions'))
+                        ->where($db->quoteName('type') . ' = ' . $db->quote('plugin'))
+                        ->where($db->quoteName('folder') . ' = ' . $db->quote('hikashop'))
+                        ->where($db->quoteName('element') . ' = ' . $db->quote('verifactu')),
+                    0,
+                    1
+                );
+                $extensionId = (int) $db->loadResult();
+                $enlace = $extensionId > 0
+                    ? 'index.php?option=com_plugins&task=plugin.edit&extension_id=' . $extensionId
+                    : 'index.php?option=com_plugins&view=plugins&filter[search]=verifactu';
+
+                $app->enqueueMessage(
+                    '<strong>VeriFactu: hay que tomar una acción antes de que acabe ' . $anio . '.</strong> '
+                    . 'Cuando hayas emitido la <strong>última factura de ' . $anio . '</strong>, abre '
+                    . '<a href="' . htmlspecialchars($enlace, ENT_QUOTES, 'UTF-8') . '">la configuración del plugin Hikashop Verifactu</a>, '
+                    . 'bloque «Copia de seguridad del registro» → «Fin de año», y pulsa «Vaciar los campos» '
+                    . '(' . ((int) $anio + 1) . ' empieza en 0001) o «Dejar el último número de ' . $anio . '» '
+                    . '(la numeración continúa). El mensaje desaparece al hacerlo.',
+                    'warning'
+                );
+            }
+        }
+
+        if (!$intentarEmail) {
+            return;
+        }
+        @touch($marca);
+        if ($estado['email']) {
+            return;
+        }
+
+        $destinatario = trim((string) $this->params->get('certificado_aviso_email', ''));
+        if ($destinatario === '') {
+            $destinatario = trim((string) \Joomla\CMS\Factory::getConfig()->get('mailfrom', ''));
+        }
+        if (!filter_var($destinatario, FILTER_VALIDATE_EMAIL)) {
+            self::log('Aviso de fin de año: no se pudo enviar porque no hay un email destinatario válido.', \Joomla\CMS\Log\Log::WARNING);
+
+            return;
+        }
+
+        if (!VerifactuFinAnio::reservarEmail($db, $anio)) {
+            return;
+        }
+
+        $siguiente = (int) $anio + 1;
+        $url = \Joomla\CMS\Uri\Uri::root() . 'administrator/index.php?option=com_plugins&view=plugins&filter%5Bsearch%5D=verifactu';
+        $cuerpo = '<p>Este es un aviso de <strong>HikaShop VeriFactu</strong> sobre la numeración de las facturas de <strong>' . $siguiente . '</strong>.</p>'
+            . '<p>El plugin lleva un contador por serie y año. Los campos «Número inicial manual» (F1, F2, F3 y R) los usa para cualquier serie y año que todavía no tenga contador, así que influyen en la primera factura de cada serie de ' . $siguiente . '.</p>'
+            . '<p><strong>Esta acción debe hacerse después de emitir la última factura de ' . $anio . '</strong> y antes de la primera de ' . $siguiente . '.</p>'
+            . '<p>Entra en <a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">Complementos &gt; Hikashop Verifactu plugin</a>, '
+            . 'bloque «Copia de seguridad del registro» &rarr; «Fin de año», y elige:</p>'
+            . '<ul>'
+            . '<li><strong>Vaciar los campos</strong>: ' . $siguiente . ' empieza en ' . substr((string) $siguiente, 2) . '-0001 (o ' . substr((string) $siguiente, 2) . 'FS-0001, ' . substr((string) $siguiente, 2) . 'F3-0001, ' . substr((string) $siguiente, 2) . 'R-0001).</li>'
+            . '<li><strong>Dejar el último número de ' . $anio . '</strong>: cada campo se rellena con el último número de ' . $anio . ' de su serie, sin sumar 1, y la numeración continúa (si la última fue la ' . substr($anio, 2) . '-0320, la primera de ' . $siguiente . ' será la ' . substr((string) $siguiente, 2) . '-0321).</li>'
+            . '</ul>'
+            . '<p>Si no haces nada y los campos tienen un valor antiguo, ' . $siguiente . ' empezará en ese número más uno.</p>'
+            . '<p>En el panel de inicio de Joomla verás un mensaje hasta que lo hagas. Elige el criterio que corresponda a tu numeración de facturas; si tienes dudas, consúltalo con tu asesor.</p>'
+            . '<p>El aviso se ha generado automáticamente por HikaShop VeriFactu y se envía a la dirección de «Email para avisos de caducidad» (o al correo del sitio si está vacía).</p>';
+
+        $mailer = \Joomla\CMS\Factory::getMailer();
+        $mailer->addRecipient($destinatario);
+        $mailer->setSubject('Aviso: acción de fin de año en HikaShop VeriFactu (numeración de ' . $siguiente . ')');
+        $mailer->isHtml(true);
+        $mailer->setBody($cuerpo);
+
+        if (!$mailer->send()) {
+            VerifactuFinAnio::liberarEmail($db, $anio);
+            self::log('Aviso de fin de año: error enviando el email a ' . $destinatario . '.', \Joomla\CMS\Log\Log::WARNING);
+
+            return;
+        }
+
+        self::log('Aviso de fin de año enviado a ' . $destinatario . ' (numeración de ' . $siguiente . ').');
     }
 
     /**

@@ -1,5 +1,98 @@
 # Changelog
 
+## 0.34.92
+
+Fin de año y los «Número inicial manual» (bloque "Copia de seguridad del registro" de la
+configuración del plugin):
+
+-   Junto a las dos primeras opciones de la nota "Fin de año" hay ahora un botón cada una:
+    «Vaciar los campos» (deja vacíos los cuatro «Número inicial manual») y «Dejar el último
+    número de <año>» (rellena cada campo con el último número de la serie en el año en curso,
+    leído de la tabla de contadores, sin sumar 1; la serie sin facturas ese año queda vacía).
+    Guardan directamente en el plugin y actualizan los campos abiertos, así que un «Guardar»
+    posterior no vuelve a escribir los valores viejos. Solo superadministradores.
+-   El texto de la copia aclara que está pensada para una instalación nueva en la que no se han
+    importado las facturas antiguas, y qué se restaura (registro, contadores y prefijos).
+-   Aviso al propietario: del 20 al 31 de diciembre, si la numeración propia está activada y no
+    se ha pulsado ninguno de los dos botones, el plugin envía un email (una vez por año) al
+    «Email para avisos de caducidad» (o al correo del sitio si está vacío) indicando que la
+    acción se hace después de la última factura del año, y muestra un mensaje de advertencia en
+    el panel de inicio de Joomla con un enlace a la configuración del plugin. Ambos dejan de
+    aparecer al pulsar uno de los botones esos días. El estado se guarda en la nueva tabla
+    #__hikashop_verifactu_aviso_fin_anio.
+
+## 0.34.91
+
+Bloque "Copia de seguridad del registro" de la configuración del plugin: nueva nota desplegable
+"Fin de año: qué hacer con los «Número inicial manual»", que explica cómo empezar el año nuevo en
+0001 (vaciar los campos antes del 1 de enero) o continuar la numeración (último número del año que
+termina, sin sumar 1) y cuándo vaciarlos. También se ha añadido al capítulo 27 del manual.
+
+## 0.34.90
+
+Copia de seguridad del registro: "Aplicar ajustes de numeración" ya no copia las semillas antiguas
+del plugin (Número inicial manual), que no son el último número usado. Ahora copia los prefijos de
+las series y rellena cada "Número inicial manual" con el último número usado de la serie, leído de
+la tabla de contadores de la copia (el plugin suma 1). Solo se rellenan si el contador de la copia es
+del año en curso; si es de otro año quedan vacíos. Al restaurar también el registro, los contadores
+se restauran y los números iniciales se dejan vacíos, para no arrastrar un número viejo al año
+siguiente. La tarjeta de descarga muestra ahora los prefijos y los contadores actuales.
+
+## 0.34.89
+
+Corrige la ventana "Subir copia y restaurar…" de la 0.34.88, que aparecía en blanco: una función
+auxiliar de VerifactuBackup.php (input()) se llamaba a sí misma sin fin y provocaba un error
+fatal en todas las pantallas de copia. No afecta a la facturación ni al envío a la AEAT.
+
+## 0.34.88
+
+Copia de seguridad y restauración del registro integradas en el propio plugin (ya no hace falta
+el componente com_verifactubackup). En la configuración del plugin, el bloque "Copia de seguridad
+del registro (descargar / restaurar)" tiene los botones "Descargar copia" y "Subir copia y
+restaurar…". La copia incluye las 4 tablas del plugin y los 8 ajustes de numeración (prefijos y
+números iniciales de las series F1, F2, F3 y R). La restauración comprueba la copia antes de
+cambiar nada, solo funciona si el registro de la web está vacío, puede reasignar los números de
+pedido con la tabla de equivalencias del importador de HikaShop y aplica registro y ajustes en
+una sola transacción. Solo superadministradores. No cambia la facturación ni el envío a la AEAT.
+
+## 0.34.87
+
+Configuración del plugin: nuevo bloque "Copia de seguridad del registro (descargar / restaurar)"
+con dos botones, "Descargar copia" y "Subir copia y restaurar…". Es solo interfaz (un campo
+del formulario de configuración): usan el componente aparte com_verifactubackup (1.2.0 o
+posterior) y, si no está instalado, el bloque solo muestra un aviso. No cambia nada de la
+facturación ni del envío a la AEAT.
+
+## 0.34.86
+
+Aviso del popup "Información adicional" más visible: texto más grande, recuadro naranja
+con borde grueso y negrita en la frase clave, para que se lea antes de pulsar "Guardar".
+
+## 0.34.85
+
+Popup "Información adicional" del pedido: si el pedido ya tiene una R1/R5 aceptada y
+"Rectificar R1" está en Sí con "Nueva base" vacía, aparece un aviso junto al botón
+"Guardar" ("Si quiere rectificar de nuevo, debe poner una nueva base imponible...").
+El aviso se muestra o se oculta al momento según se rellenan los campos. Incluye los
+cambios de la 0.34.84.
+
+## 0.34.84
+
+Rectificar R1: la actualización de instalación que marca los pedidos ya rectificados
+usa ahora el nombre de campo configurado en "Campo HikaShop: Rectificar R1" (antes
+escribía siempre en verifactu_rectificar_diferencias y fallaba si se había renombrado).
+
+Rectificar R1 en Sí, sin "Nueva base", en un pedido que ya tiene una R1/R5 aceptada:
+sigue sin enviarse nada, pero ahora se avisa en el administrador y queda en el log.
+
+Exportación CSV del registro: las columnas base_imponible, tipo_iva, cuota_iva,
+tipo_recargo y recargo_equivalencia pasan al final, para no desplazar las posiciones
+de quien importa el CSV por posición.
+
+Columna "Rectificaciones R1" del listado de pedidos: se localiza por la clase de la
+cabecera del campo (hikashop_order_<campo>_title), no solo por el texto, así que
+sigue funcionando si el campo se traduce o se renombra.
+
 ## 0.34.83
 
 Importes con coma decimal y punto de miles (1.234,56): en la pantalla "Registro de

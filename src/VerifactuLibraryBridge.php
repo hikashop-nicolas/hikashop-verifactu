@@ -369,10 +369,44 @@ class VerifactuLibraryBridge
         // nueva y guardar el pedido no debe repetir ni dar error.
         if ($this->getNuevaBaseImponible($order) === null
             && $this->tieneRectificacionPorDiferenciasAceptada((int) $order->order_id)) {
+            // v0.34.84: no se envía nada, pero tampoco se ignora en silencio: si
+            // alguien quería una segunda rectificación y dejó la base en blanco,
+            // lo ve (y queda en el log).
+            $this->avisarRectificacionSinNuevaBase($order);
+
             return false;
         }
 
         return true;
+    }
+
+    /**
+     * v0.34.84: "Rectificar R1" en Sí, sin "Nueva base", en un pedido que ya tiene una
+     * R1/R5 aceptada. No se envía ninguna rectificación (el Sí es la marca de
+     * "ya rectificado"), pero se deja constancia en el log y, en el
+     * administrador, se avisa para que no parezca que el guardado no ha hecho nada.
+     */
+    private function avisarRectificacionSinNuevaBase($order): void
+    {
+        $referencia = (string) ($order->order_number ?? $order->order_id ?? '');
+        VerifactuLog::add(
+            'Pedido ' . ($order->order_id ?? '?') . ': "Rectificar R1" en Sí sin "Nueva base" y con una rectificación ya aceptada; no se envía ninguna rectificación nueva.',
+            \Joomla\CMS\Log\Log::INFO
+        );
+
+        try {
+            $app = \Joomla\CMS\Factory::getApplication();
+            if ($app->isClient('administrator')) {
+                $app->enqueueMessage(
+                    'VeriFactu, pedido ' . htmlspecialchars($referencia, ENT_QUOTES, 'UTF-8')
+                    . ': "Rectificar R1" está en Sí pero no se ha indicado "Nueva base", y el pedido ya tiene una rectificación aceptada. '
+                    . 'No se ha enviado ninguna rectificación nueva. Si quieres rectificar otra vez, rellena "Nueva base" y guarda de nuevo.',
+                    'notice'
+                );
+            }
+        } catch (\Throwable $e) {
+            // el aviso es solo informativo: nunca debe interrumpir el guardado del pedido
+        }
     }
 
     /**
